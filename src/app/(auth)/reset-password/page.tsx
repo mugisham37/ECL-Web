@@ -1,0 +1,28 @@
+import { redirect } from "next/navigation";
+import { ResetForm } from "./ResetForm";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
+import { AuthLogo } from "@/src/components/auth/AuthLogo";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Set new password — ECL Platform",
+};
+
+interface Props {
+  searchParams: Promise<{ token?: string }>;
+}
+
+export default async function ResetPasswordPage({ searchParams }: Props) {
+  const params = await searchParams;
+
+  if (!params.token) {
+    redirect("/auth/error?reason=expired");
+  }
+
+  return (
+    <AuthLayout>
+      <AuthLogo />
+      <ResetForm token={params.token} />
+    </AuthLayout>
+  );
+}
