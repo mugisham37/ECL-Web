@@ -1,17 +1,17 @@
-import { LoginForm } from "./LoginForm";
+import { ForgotForm } from "./ForgotForm";
 import { AuthLayout } from "@/app/components/auth/AuthLayout";
 import { AuthLogo } from "@/app/components/auth/AuthLogo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sign in — ECL Platform",
+  title: "Reset password — ECL Platform",
 };
 
-export default function SignInPage() {
+export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <AuthLogo />
-      <LoginForm />
+      <ForgotForm />
     </AuthLayout>
   );
 }

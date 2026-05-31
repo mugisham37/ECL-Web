@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/app/components/ui/button";
 import { useDemo } from "./DemoContext";
 
 export function CtaBanner() {

@@ -341,9 +341,15 @@
 }
 
 /* ---- KEYFRAMES ---- */
-@keyframes spin     { to { transform: rotate(360deg); } }
-@keyframes shimmer  { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+@keyframes shimmer   { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes auth-in   { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes auth-shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
 
 /* ---- REDUCED MOTION ---- */
 @media (prefers-reduced-motion: reduce) {
