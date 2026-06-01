@@ -13,6 +13,7 @@ interface TopbarProps {
   allTenants: Tenant[];
   notifications: Notification[];
   onOpenMobileDrawer: () => void;
+  onToggleCollapse: () => void;
   onSwitchTenant: (t: Tenant) => void;
 }
 
@@ -22,9 +23,15 @@ export function Topbar({
   allTenants,
   notifications,
   onOpenMobileDrawer,
+  onToggleCollapse,
   onSwitchTenant,
 }: TopbarProps) {
   const [activeTenant, setActiveTenant] = useState<Tenant>(tenant);
+
+  function handleMenuPress() {
+    if (window.innerWidth < 768) onOpenMobileDrawer();
+    else onToggleCollapse();
+  }
 
   function handleSwitch(t: Tenant) {
     setActiveTenant(t);
@@ -49,11 +56,11 @@ export function Topbar({
     >
       {/* Left */}
       <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", minWidth: 0 }}>
-        {/* Hamburger — mobile only */}
+        {/* Hamburger — all breakpoints: collapses sidebar on md+, opens drawer on mobile */}
         <button
-          className="topbar-icon-btn md:hidden"
-          onClick={onOpenMobileDrawer}
-          aria-label="Open navigation menu"
+          className="topbar-icon-btn"
+          onClick={handleMenuPress}
+          aria-label="Toggle navigation"
         >
           <Menu size={18} />
         </button>

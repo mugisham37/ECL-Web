@@ -10,10 +10,5 @@ export default function DashboardPage() {
   // In production this will be: const data = await getDashboardData(session.tenantId)
   const data = getMockDashboardData("healthy");
 
-  return (
-    <DashboardView
-      initialData={data}
-      getAllMockData={getMockDashboardData}
-    />
-  );
+  return <DashboardView initialData={data} />;
 }

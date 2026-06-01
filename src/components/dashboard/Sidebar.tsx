@@ -1,15 +1,14 @@
 "use client";
 
-import { Database, ChevronLeft } from "lucide-react";
+import { Database } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SidebarNav } from "./SidebarNav";
 
 interface SidebarProps {
   isCollapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
-export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ isCollapsed }: SidebarProps) {
   return (
     <aside
       style={{
@@ -80,65 +79,6 @@ export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
         <SidebarNav isCollapsed={isCollapsed} />
       </div>
 
-      {/* Collapse toggle */}
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: 12,
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        <button
-          onClick={onToggleCollapse}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 11,
-            padding: "9px 10px",
-            borderRadius: "var(--r-sm)",
-            color: "var(--text-subtle)",
-            background: "none",
-            border: 0,
-            cursor: "pointer",
-            fontSize: "var(--fs-caption)",
-            width: "100%",
-            transition: "background var(--t-micro), color var(--t-micro)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
-              "var(--surface-sunken)";
-            (e.currentTarget as HTMLButtonElement).style.color = "var(--text)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "none";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--text-subtle)";
-          }}
-        >
-          <ChevronLeft
-            size={16}
-            style={{
-              flexShrink: 0,
-              transition: "transform var(--t-base) var(--ease-out)",
-              transform: isCollapsed ? "rotate(180deg)" : "none",
-            }}
-          />
-          <AnimatePresence initial={false}>
-            {!isCollapsed && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.15 }}
-                style={{ overflow: "hidden", whiteSpace: "nowrap" }}
-              >
-                Collapse
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
-      </div>
     </aside>
   );
 }

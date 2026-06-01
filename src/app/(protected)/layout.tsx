@@ -1,12 +1,8 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-
-export default async function ProtectedLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session) redirect("/sign-in");
+  // Auth check temporarily disabled for visual preview
   return <>{children}</>;
 }

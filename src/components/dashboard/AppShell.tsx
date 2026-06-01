@@ -5,7 +5,6 @@ import { DashboardProvider } from "./DashboardContext";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { MobileDrawer } from "./MobileDrawer";
-import { BottomNav } from "./BottomNav";
 import { useDashboard } from "./DashboardContext";
 import type { AppShellUser, Tenant, Notification } from "@/lib/dashboard-types";
 
@@ -44,46 +43,31 @@ function ShellInner({
     return () => window.removeEventListener("resize", handleResize);
   }, [dispatch]);
 
-  const sidebarWidth = isCollapsed ? "var(--side-w-collapsed)" : "var(--side-w)";
-
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        gridTemplateColumns: `${sidebarWidth} 1fr`,
-        gridTemplateRows: "var(--topbar-h) 1fr",
-        gridTemplateAreas: '"side top" "side main"',
-        background: "var(--bg)",
-        transition: "grid-template-columns var(--t-base) var(--ease-out)",
-      }}
-      className="max-md:grid-cols-[1fr]"
+      className="app-shell"
+      data-collapsed={isCollapsed ? "true" : undefined}
     >
-      {/* Sidebar (hidden on mobile — MobileDrawer handles it there) */}
-      <div className="hidden md:block" style={{ gridArea: "side" }}>
-        <Sidebar
-          isCollapsed={isCollapsed}
-          onToggleCollapse={() => dispatch({ type: "TOGGLE_COLLAPSE" })}
-        />
+      {/* Sidebar — CSS hides it on mobile, shows on md+ */}
+      <div className="app-shell-sidebar">
+        <Sidebar isCollapsed={isCollapsed} />
       </div>
 
       {/* Topbar */}
-      <div style={{ gridArea: "top" }}>
+      <div className="app-shell-topbar">
         <Topbar
           user={user}
           tenant={tenant}
           allTenants={allTenants}
           notifications={notifications}
           onOpenMobileDrawer={() => dispatch({ type: "OPEN_MOBILE_DRAWER" })}
+          onToggleCollapse={() => dispatch({ type: "TOGGLE_COLLAPSE" })}
           onSwitchTenant={(t) => dispatch({ type: "SET_TENANT", tenant: t })}
         />
       </div>
 
-      {/* Main content */}
-      <main
-        style={{ gridArea: "main", overflowX: "hidden", position: "relative" }}
-        className="pb-[var(--bottom-nav-h)] md:pb-0"
-      >
+      {/* Main content — CSS adds bottom padding on mobile to clear BottomNav */}
+      <main className="app-shell-main">
         {/* Blueprint grid motif */}
         <div
           aria-hidden="true"
@@ -122,8 +106,6 @@ function ShellInner({
         onClose={() => dispatch({ type: "CLOSE_MOBILE_DRAWER" })}
       />
 
-      {/* Mobile: bottom nav */}
-      <BottomNav />
     </div>
   );
 }

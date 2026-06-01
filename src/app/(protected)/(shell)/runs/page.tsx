@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { RunsListView } from "@/components/runs/RunsListView";
+import { MOCK_RUNS_LIST } from "@/lib/runs-mock";
 
 export const metadata: Metadata = {
   title: "Runs — ECL Platform",
@@ -6,18 +8,9 @@ export const metadata: Metadata = {
 
 export default function RunsPage() {
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <h1>Runs</h1>
-          <div className="ph-sub">
-            <span>All ECL computation runs</span>
-          </div>
-        </div>
-      </div>
-      <p style={{ color: "var(--text-muted)", fontSize: "var(--fs-body)" }}>
-        Runs — coming in Flow 5.
-      </p>
-    </div>
+    <RunsListView
+      runs={MOCK_RUNS_LIST}
+      tenantName="Savanna Bank PLC"
+    />
   );
 }
