@@ -2,17 +2,17 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/src/components/ui/button";
-import { Input } from "@/src/components/ui/input";
-import { Label } from "@/src/components/ui/label";
-import { Spinner } from "@/src/components/ui/spinner";
-import { AuthCard } from "@/src/components/auth/AuthCard";
-import { AuthFormError } from "@/src/components/auth/AuthFormError";
-import { PasswordInput } from "@/src/components/auth/PasswordInput";
-import { PasswordStrength } from "@/src/components/auth/PasswordStrength";
-import { TermsCheckbox } from "@/src/components/auth/TermsCheckbox";
-import { signUpAction, type AuthFormState } from "@/src/app/actions/auth";
-import { scorePassword } from "@/src/lib/use-password-strength";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthFormError } from "@/components/auth/AuthFormError";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { TermsCheckbox } from "@/components/auth/TermsCheckbox";
+import { signUpAction, type AuthFormState } from "@/app/actions/auth";
+import { scorePassword } from "@/lib/use-password-strength";
 
 export function SignUpForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(

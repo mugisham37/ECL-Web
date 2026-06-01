@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Spectral, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/src/providers/ThemeProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 
 const hankenGrotesk = Hanken_Grotesk({
   variable: "--font-hanken",

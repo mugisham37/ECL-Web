@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 interface MobileMenuProps {
   isOpen: boolean;

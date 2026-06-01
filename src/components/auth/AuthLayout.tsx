@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ThemeToggle } from "@/src/components/marketing/ThemeToggle";
+import { ThemeToggle } from "@/components/marketing/ThemeToggle";
 
 interface AuthLayoutProps {
   children: React.ReactNode;

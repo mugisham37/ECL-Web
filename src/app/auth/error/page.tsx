@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/src/components/ui/button";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
-import { AuthLogo } from "@/src/components/auth/AuthLogo";
-import { AuthCard } from "@/src/components/auth/AuthCard";
+import { Button } from "@/components/ui/button";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthLogo } from "@/components/auth/AuthLogo";
+import { AuthCard } from "@/components/auth/AuthCard";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

@@ -1,5 +1,5 @@
-import { Checkbox } from "@/src/components/ui/checkbox";
-import { Label } from "@/src/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface RememberMeProps {
   defaultChecked?: boolean;

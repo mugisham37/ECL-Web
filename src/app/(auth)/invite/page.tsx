@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { InviteForm } from "./InviteForm";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
-import { AuthLogo } from "@/src/components/auth/AuthLogo";
+import { InviteForm } from "@/components/auth/InviteForm";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthLogo } from "@/components/auth/AuthLogo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

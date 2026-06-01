@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { scorePassword } from "@/src/lib/use-password-strength";
+import { scorePassword } from "@/lib/use-password-strength";
 
 interface PasswordStrengthProps {
   password: string;

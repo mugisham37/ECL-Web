@@ -4,14 +4,14 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
-import { Spinner } from "@/src/components/ui/spinner";
-import { AuthCard } from "@/src/components/auth/AuthCard";
-import { AuthFormError } from "@/src/components/auth/AuthFormError";
-import { PasswordInput } from "@/src/components/auth/PasswordInput";
-import { PasswordStrength } from "@/src/components/auth/PasswordStrength";
-import { resetAction, type AuthFormState } from "@/src/app/actions/auth";
-import { scorePassword } from "@/src/lib/use-password-strength";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthFormError } from "@/components/auth/AuthFormError";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { resetAction, type AuthFormState } from "@/app/actions/auth";
+import { scorePassword } from "@/lib/use-password-strength";
 
 interface ResetFormProps {
   token: string;

@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useDemo } from "./DemoContext";
 
 const tiers = [

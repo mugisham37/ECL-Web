@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Checkbox } from "@/src/components/ui/checkbox";
-import { Label } from "@/src/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface TermsCheckboxProps {
   onCheckedChange?: (checked: boolean) => void;

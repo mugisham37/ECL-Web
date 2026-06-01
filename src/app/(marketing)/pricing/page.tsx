@@ -1,6 +1,5 @@
-import { MarketingLayout } from "@/src/components/marketing/MarketingLayout";
-import { PricingSection } from "@/src/components/marketing/PricingSection";
-import { FaqAccordion } from "@/src/components/marketing/FaqAccordion";
+import { PricingSection } from "@/components/marketing/PricingSection";
+import { FaqAccordion } from "@/components/marketing/FaqAccordion";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,9 +10,9 @@ export const metadata: Metadata = {
 
 export default function PricingPage() {
   return (
-    <MarketingLayout>
+    <>
       <PricingSection />
       <FaqAccordion />
-    </MarketingLayout>
+    </>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { GlimpseCard } from "./GlimpseCard";
 import { useDemo } from "./DemoContext";
 

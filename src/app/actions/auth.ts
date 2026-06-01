@@ -1,13 +1,13 @@
 "use server";
 
-import { signIn } from "@/src/lib/auth";
+import { signIn } from "@/lib/auth";
 import {
   LoginSchema,
   SignUpSchema,
   ForgotSchema,
   ResetSchema,
   InviteSchema,
-} from "@/src/lib/auth-schema";
+} from "@/lib/auth-schema";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 

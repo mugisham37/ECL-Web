@@ -1,6 +1,6 @@
-import { ForgotForm } from "./ForgotForm";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
-import { AuthLogo } from "@/src/components/auth/AuthLogo";
+import { ForgotForm } from "@/components/auth/ForgotForm";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthLogo } from "@/components/auth/AuthLogo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

@@ -1,5 +1,4 @@
-import { MarketingLayout } from "@/src/components/marketing/MarketingLayout";
-import { SecurityDoc } from "@/src/components/marketing/SecurityDoc";
+import { SecurityDoc } from "@/components/marketing/SecurityDoc";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -9,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SecurityPage() {
-  return (
-    <MarketingLayout>
-      <SecurityDoc />
-    </MarketingLayout>
-  );
+  return <SecurityDoc />;
 }

@@ -4,14 +4,14 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
-import { Input } from "@/src/components/ui/input";
-import { Label } from "@/src/components/ui/label";
-import { Spinner } from "@/src/components/ui/spinner";
-import { AuthCard } from "@/src/components/auth/AuthCard";
-import { AuthFormError } from "@/src/components/auth/AuthFormError";
-import { ResendCountdown } from "@/src/components/auth/ResendCountdown";
-import { forgotAction, type AuthFormState } from "@/src/app/actions/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthFormError } from "@/components/auth/AuthFormError";
+import { ResendCountdown } from "@/components/auth/ResendCountdown";
+import { forgotAction, type AuthFormState } from "@/app/actions/auth";
 
 export function ForgotForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(

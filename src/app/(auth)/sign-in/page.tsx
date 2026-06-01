@@ -1,6 +1,6 @@
-import { LoginForm } from "./LoginForm";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
-import { AuthLogo } from "@/src/components/auth/AuthLogo";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthLogo } from "@/components/auth/AuthLogo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
