@@ -9,6 +9,7 @@ import {
   BarChart3,
   Shield,
   Settings,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +20,9 @@ const PRIMARY_NAV = [
 ];
 
 const MANAGE_NAV = [
-  { href: "/admin", icon: Shield, label: "Admin" },
-  { href: "/settings", icon: Settings, label: "Settings" },
+  { href: "/admin",    icon: Shield,    label: "Admin"    },
+  { href: "/settings", icon: Settings,  label: "Settings" },
+  { href: "/platform", icon: Terminal,  label: "Platform" },
 ];
 
 interface SidebarNavProps {
