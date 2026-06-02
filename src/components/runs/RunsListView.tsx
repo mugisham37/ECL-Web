@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { RunListToolbar } from "./RunListToolbar";
 import { RunsListTable } from "./RunsListTable";
 import { defaultRunListFilter } from "@/lib/runs-types";
@@ -50,21 +51,22 @@ export function RunsListView({ runs, tenantName }: RunsListViewProps) {
           </div>
         </div>
         <div className="ph-actions">
-          <button
+          <Link
+            href="/runs/new"
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               height: "var(--control-h)", padding: "0 14px",
               background: "var(--accent)", color: "#fff",
-              border: "none", borderRadius: "var(--r-sm)",
+              borderRadius: "var(--r-sm)", textDecoration: "none",
               fontSize: "var(--fs-body)", fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
               cursor: "pointer", transition: "background var(--t-micro)",
             }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "var(--accent-hover)")}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "var(--accent)")}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)")}
           >
             <Plus size={16} />
             New Run
-          </button>
+          </Link>
         </div>
       </div>
 

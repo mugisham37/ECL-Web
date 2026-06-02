@@ -1,0 +1,147 @@
+import { motion } from "framer-motion";
+import { PdTransitionMatrix } from "./PdTransitionMatrix";
+import { StageDistribution } from "./StageDistribution";
+import { SegmentLoansTable } from "./SegmentLoansTable";
+import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
+import { fmtKes, MOCK_MATRIX, getLoansForSegment } from "@/lib/results-mock";
+import type { SegmentData, ExplorerFilter } from "@/lib/results-types";
+
+interface SegmentViewProps {
+  segment: SegmentData;
+  filter: ExplorerFilter;
+  isLoading: boolean;
+  onDrillLoan: (id: string) => void;
+  onClearFilters: () => void;
+}
+
+export function SegmentView({
+  segment,
+  filter,
+  isLoading,
+  onDrillLoan,
+  onClearFilters,
+}: SegmentViewProps) {
+  if (isLoading) {
+    return (
+      <div>
+        <div className="rx-kpis k3" style={{ marginBottom: "var(--sp-4)" }}>
+          {[...Array(3)].map((_, i) => (
+            <SkeletonBlock key={i} height={88} className="skel-kpi" />
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-4)", marginBottom: "var(--sp-4)" }}>
+          <SkeletonBlock height={260} />
+          <SkeletonBlock height={260} />
+        </div>
+        {[...Array(8)].map((_, i) => (
+          <div key={i} style={{ marginBottom: 8 }}>
+            <SkeletonBlock height={48} className="skel-row" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const loans = getLoansForSegment(segment.name);
+  const KPIS = [
+    { label: "Segment ECL",  cur: "KES", value: fmtKes(segment.ecl) },
+    { label: "Coverage",     cur: "",    value: segment.coverage },
+    { label: "Loans",        cur: "",    value: segment.loans.toLocaleString() },
+  ];
+
+  return (
+    <div>
+      {/* KPI strip */}
+      <div className="rx-kpis k3">
+        {KPIS.map((kpi, i) => (
+          <motion.div
+            key={kpi.label}
+            className="kpi"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="kpi-label">{kpi.label}</div>
+            <div className="kpi-value">
+              {kpi.cur && <span className="kpi-cur">{kpi.cur}</span>}
+              {kpi.value}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Two-panel row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "var(--sp-4)",
+          marginBottom: "var(--sp-4)",
+        }}
+        className="seg-panel-grid"
+      >
+        {/* PD Matrix panel */}
+        <motion.div
+          className="rx-panel"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="rx-panel-head">
+            <h3>PD transition matrix</h3>
+            <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+              monthly · {segment.name}
+            </span>
+          </div>
+          <div className="rx-panel-body">
+            <PdTransitionMatrix matrix={MOCK_MATRIX} />
+          </div>
+        </motion.div>
+
+        {/* Stage distribution panel */}
+        <motion.div
+          className="rx-panel"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="rx-panel-head">
+            <h3>Stage distribution</h3>
+            <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+              by exposure
+            </span>
+          </div>
+          <div className="rx-panel-body">
+            <StageDistribution mix={segment.mix} />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Loans table */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
+        <h3 style={{ fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" as React.CSSProperties["fontWeight"] }}>
+          Loans · {segment.name}
+        </h3>
+        <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+          {segment.loans.toLocaleString()} loans
+        </span>
+      </div>
+      <SegmentLoansTable
+        loans={loans}
+        filter={filter}
+        totalCount={segment.loans}
+        onDrillLoan={onDrillLoan}
+        onClearFilters={onClearFilters}
+      />
+    </div>
+  );
+}
