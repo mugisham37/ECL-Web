@@ -2,6 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Local font files — no CDN dependency */
+@import '@fontsource-variable/hanken-grotesk';
+@import '@fontsource/spectral/400.css';
+@import '@fontsource/spectral/400-italic.css';
+@import '@fontsource/spectral/500.css';
+@import '@fontsource/spectral/500-italic.css';
+@import '@fontsource/spectral/600.css';
+@import '@fontsource/spectral/600-italic.css';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/500.css';
+
 /* Teach Tailwind's dark: prefix to match data-theme="dark" attribute (set by next-themes) */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
@@ -67,7 +78,7 @@
   --chart-5: #B364C9;  --chart-6: #2C9A63;  --chart-7: #DD6A52;  --chart-8: #7A85A6;
 
   /* Typography */
-  --font-ui:      "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui:      "Hanken Grotesk Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Spectral", Georgia, "Times New Roman", serif;
   --font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
@@ -1221,6 +1232,92 @@
   .sec-title-row { flex-direction: column; }
   .danger-zone .dz-row { flex-direction: column; align-items: flex-start; }
 }
+
+/* =========================================================================
+   SHARED COMPONENT PRIMITIVES  (ported from reference components.css/base.css)
+   These were missing from the Next.js globals; added for Flows 8-10.
+   ========================================================================= */
+
+/* ---- TEXT UTILITIES ---- */
+.muted     { color: var(--text-muted); }
+.t-body    { font-size: var(--fs-body); line-height: var(--lh-body); }
+.t-caption { font-size: var(--fs-caption); line-height: 1.4; color: var(--text-muted); }
+.t-micro   { font-size: var(--fs-micro); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--fw-medium); color: var(--text-subtle); font-family: var(--font-mono); }
+.between   { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.num       { font-family: var(--font-mono); font-feature-settings: "tnum" 1, "zero" 1; }
+.mono      { font-family: var(--font-mono); }
+
+/* ---- BADGE ---- */
+.badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: var(--fw-semibold); display: inline-grid; place-items: center; font-family: var(--font-mono); }
+
+/* ---- PILL EXTRA ---- */
+.pill-muted { background: transparent; color: var(--text-subtle); border: 1px solid var(--border); }
+.pill-muted .dot { background: var(--text-subtle); }
+
+/* ---- BUTTON PRIMITIVES ---- */
+.btn { --btn-h: 36px; display: inline-flex; align-items: center; gap: 6px; height: var(--btn-h); padding: 0 14px; border: 1px solid transparent; border-radius: var(--r-sm); font-size: var(--fs-body); font-weight: var(--fw-medium); cursor: pointer; white-space: nowrap; text-decoration: none; transition: background var(--t-micro), border-color var(--t-micro), color var(--t-micro); user-select: none; }
+.btn:active { transform: scale(0.985); }
+.btn .ic { width: 16px; height: 16px; }
+.btn-sm  { --btn-h: 28px; padding: 0 10px; font-size: var(--fs-caption); }
+.btn-lg  { --btn-h: 44px; padding: 0 20px; font-size: var(--fs-h3); }
+
+.btn-primary  { background: var(--accent); color: #fff; border-color: transparent; }
+.btn-primary:hover  { background: var(--accent-hover); }
+.btn-primary:active { background: var(--accent-active); }
+[data-theme="dark"] .btn-primary { color: #0B0C1A; }
+
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-secondary:hover { background: var(--surface-sunken); border-color: var(--text-subtle); }
+
+.btn-ghost { background: transparent; color: var(--text-muted); border-color: transparent; }
+.btn-ghost:hover { background: var(--surface-sunken); color: var(--text); }
+
+.btn-danger { background: var(--danger); color: #fff; border-color: transparent; }
+.btn-danger:hover { filter: brightness(0.94); }
+
+.btn-icon { width: var(--btn-h); padding: 0; color: var(--text-muted); background: transparent; border-color: transparent; }
+.btn-icon:hover { background: var(--surface-sunken); color: var(--text); }
+
+.btn[disabled], .btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
+
+/* ---- FORM PRIMITIVES ---- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-size: var(--fs-caption); font-weight: var(--fw-medium); color: var(--text-muted); }
+.field .hint  { font-size: var(--fs-caption); color: var(--text-subtle); }
+.field-err    { font-size: var(--fs-caption); color: var(--danger); display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+
+.input, .select, .textarea {
+  width: 100%; height: var(--control-h);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm); padding: 0 12px;
+  font-size: var(--fs-body); color: var(--text);
+  transition: border-color var(--t-micro), box-shadow var(--t-micro);
+}
+.textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
+.input:hover, .select:hover, .textarea:hover  { border-color: var(--text-subtle); }
+.input:focus, .select:focus, .textarea:focus  { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+.input[disabled] { background: var(--surface-sunken); color: var(--text-subtle); cursor: not-allowed; }
+.input.input-error, .select.input-error { border-color: var(--danger); }
+.input.input-error:focus { box-shadow: 0 0 0 3px var(--danger-subtle); }
+
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-wrap > .ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-subtle); pointer-events: none; }
+.input-wrap .input { padding-left: 36px; }
+
+.select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239494A4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px; cursor: pointer; }
+
+/* ---- SEGMENT CONTROL ---- */
+.seg { display: inline-flex; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 2px; gap: 1px; }
+.seg button { height: 30px; padding: 0 12px; border: 0; background: none; color: var(--text-muted); border-radius: 3px; font-size: var(--fs-caption); font-weight: var(--fw-medium); cursor: pointer; white-space: nowrap; transition: background var(--t-micro), color var(--t-micro); }
+.seg button:hover { color: var(--text); background: var(--surface); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-hover); }
+
+/* ---- CARD ---- */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.card-head  { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: var(--fs-h3); font-weight: var(--fw-semibold); color: var(--text); }
+.card-sub   { font-size: var(--fs-caption); color: var(--text-muted); margin-top: 3px; }
 
 /* =========================================================================
    FLOW 10 · SUPER ADMIN OPERATOR CONSOLE
