@@ -5,16 +5,15 @@ import { X, Info, AlertTriangle, CheckCircle } from "lucide-react";
 import { PlanTag } from "./atoms/PlanTag";
 import { StatusPill } from "./atoms/StatusPill";
 import type { TenantRecord, SuperAdminModalKind } from "@/lib/superadmin-types";
-import type { ToastItem } from "@/lib/admin-types";
 
 interface TenantDrawerProps {
   open: boolean;
   tenantIdx: number | null;
   tenants: TenantRecord[];
   onClose: () => void;
-  onUpdateTenants: (tenants: TenantRecord[]) => void;
   onOpenModal: (m: SuperAdminModalKind) => void;
-  onToast: (msg: string, kind?: ToastItem["kind"]) => void;
+  onReactivate?: () => void | Promise<void>;
+  onExtendTrial?: () => void | Promise<void>;
 }
 
 export function TenantDrawer({
@@ -22,26 +21,11 @@ export function TenantDrawer({
   tenantIdx,
   tenants,
   onClose,
-  onUpdateTenants,
   onOpenModal,
-  onToast,
+  onReactivate,
+  onExtendTrial,
 }: TenantDrawerProps) {
   const tenant = tenantIdx !== null ? tenants[tenantIdx] : null;
-
-  function handleReactivate() {
-    if (tenantIdx === null) return;
-    const updated = tenants.map((t, i) =>
-      i === tenantIdx ? { ...t, status: "active" as const } : t
-    );
-    onUpdateTenants(updated);
-    onClose();
-    onToast(`${tenant!.name} reactivated.`);
-  }
-
-  function handleExtendTrial() {
-    onClose();
-    onToast(`Trial for ${tenant!.name} extended 14 days.`, "info");
-  }
 
   return (
     <AnimatePresence>
@@ -182,16 +166,16 @@ export function TenantDrawer({
                 Impersonate
               </button>
 
-              {tenant.status === "trial" && (
-                <button className="btn btn-secondary" onClick={handleExtendTrial}>
+              {tenant.status === "trial" && onExtendTrial && (
+                <button className="btn btn-secondary" onClick={() => void onExtendTrial()}>
                   Extend trial
                 </button>
               )}
 
-              {tenant.status === "suspended" && (
+              {tenant.status === "suspended" && onReactivate && (
                 <button
                   className="btn btn-primary"
-                  onClick={handleReactivate}
+                  onClick={() => void onReactivate()}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
                   <CheckCircle size={14} aria-hidden />

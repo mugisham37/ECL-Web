@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useApiSession } from "@/hooks/use-api-session";
 import { RunListToolbar } from "./RunListToolbar";
 import { RunsListTable } from "./RunsListTable";
 import { defaultRunListFilter } from "@/lib/runs-types";
@@ -15,6 +16,8 @@ interface RunsListViewProps {
 }
 
 export function RunsListView({ runs, tenantName }: RunsListViewProps) {
+  const { role } = useApiSession();
+  const canCreateRun = role !== "reviewer";
   const [filter, setFilter] = useState<RunListFilter>(defaultRunListFilter);
 
   function handleFilterChange(patch: Partial<RunListFilter>) {
@@ -50,6 +53,7 @@ export function RunsListView({ runs, tenantName }: RunsListViewProps) {
             <span>{tenantName}</span>
           </div>
         </div>
+        {canCreateRun && (
         <div className="ph-actions">
           <Link
             href="/runs/new"
@@ -68,6 +72,7 @@ export function RunsListView({ runs, tenantName }: RunsListViewProps) {
             New Run
           </Link>
         </div>
+        )}
       </div>
 
       {/* Toolbar */}

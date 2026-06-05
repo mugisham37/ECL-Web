@@ -11,12 +11,20 @@ interface TenantProfileSectionProps {
   onMarkDirty: () => void;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
   onSetModal: (m: ModalKind) => void;
+  onCloseTenant?: () => Promise<void>;
 }
 
-export function TenantProfileSection({ profile, modal, onUpdate, onMarkDirty, onToast, onSetModal }: TenantProfileSectionProps) {
-  function handleCloseTenant() {
-    onToast("Closure request sent to Super Admin.", "info");
-    onSetModal(null);
+export function TenantProfileSection({
+  profile, modal, onUpdate, onMarkDirty, onToast, onSetModal, onCloseTenant,
+}: TenantProfileSectionProps) {
+  async function handleCloseTenant() {
+    try {
+      if (onCloseTenant) await onCloseTenant();
+      else onToast("Closure request sent to Super Admin.", "info");
+      onSetModal(null);
+    } catch {
+      onToast("Failed to submit closure request.", "danger");
+    }
   }
 
   return (

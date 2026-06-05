@@ -11,6 +11,8 @@ import {
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+
 export type AuthFormState =
   | { error?: string; success?: boolean; email?: string }
   | undefined;
@@ -39,6 +41,7 @@ export async function loginAction(
     await signIn("credentials", {
       email: validated.data.email,
       password: validated.data.password,
+      remember: String(validated.data.remember),
       redirectTo: "/dashboard",
     });
   } catch (e) {
@@ -74,11 +77,38 @@ export async function signUpAction(
     return { error: validated.error.issues[0]?.message ?? "Please check your inputs." };
   }
 
-  // TODO: call backend API to create workspace + admin user
-  // const result = await createWorkspace(validated.data)
-  // if (!result.ok) return { error: result.message }
+  const res = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      company_name: validated.data.companyName,
+      email: validated.data.email,
+      name: validated.data.name,
+      password: validated.data.password,
+    }),
+  });
 
-  redirect("/setup/onboarding");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const detail = (err as Record<string, string>).detail;
+    if (detail?.toLowerCase().includes("email")) {
+      return { error: "An account with this email already exists." };
+    }
+    return { error: detail ?? "Registration failed. Please try again." };
+  }
+
+  try {
+    await signIn("credentials", {
+      email: validated.data.email,
+      password: validated.data.password,
+      redirectTo: "/setup/onboarding",
+    });
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return { error: "Registration succeeded but sign-in failed. Please log in." };
+    }
+    throw e;
+  }
 }
 
 export async function forgotAction(

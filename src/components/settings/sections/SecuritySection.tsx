@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { Lock, Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { scorePassword } from "@/lib/use-password-strength";
+import { updatePassword } from "@/lib/api/settings";
+import { ApiError } from "@/lib/api/client";
 
 interface SecuritySectionProps {
+  token?: string;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
 }
 
-export function SecuritySection({ onToast }: SecuritySectionProps) {
+export function SecuritySection({ token, onToast }: SecuritySectionProps) {
   const [curPw,  setCurPw]  = useState("");
   const [newPw,  setNewPw]  = useState("");
   const [confPw, setConfPw] = useState("");
@@ -20,15 +23,20 @@ export function SecuritySection({ onToast }: SecuritySectionProps) {
   const mismatch = confPw.length > 0 && newPw !== confPw;
   const canSubmit = curPw.length > 0 && strength.score >= 3 && newPw === confPw && confPw.length > 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || !token) return;
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      await updatePassword(token, { current_password: curPw, new_password: newPw });
       setCurPw(""); setNewPw(""); setConfPw("");
-      setSubmitting(false);
       onToast("Password updated.");
-    }, 1000);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to update password.";
+      onToast(msg, "danger");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const strengthClass = newPw ? `strength s${Math.max(strength.score, 1)}` : "strength";

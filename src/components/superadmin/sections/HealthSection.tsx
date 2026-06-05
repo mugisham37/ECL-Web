@@ -10,7 +10,8 @@ interface HealthSectionProps {
   normalServices: HealthService[];
   normalErrors: AuditEntry[];
   degradedErrors: AuditEntry[];
-  onToggleDegrade: () => void;
+  onToggleDegrade?: () => void;
+  queueStats?: { running: number; queued: number; avg_wait_seconds: number };
   isLoading: boolean;
 }
 
@@ -20,6 +21,7 @@ export function HealthSection({
   normalErrors,
   degradedErrors,
   onToggleDegrade,
+  queueStats,
   isLoading,
 }: HealthSectionProps) {
   if (isLoading) {
@@ -42,8 +44,8 @@ export function HealthSection({
       }))
     : normalServices;
 
-  const running = isDegraded ? 3 : 8;
-  const queued  = isDegraded ? 14 : 3;
+  const running = queueStats?.running ?? (isDegraded ? 3 : 8);
+  const queued  = queueStats?.queued ?? (isDegraded ? 14 : 3);
   const totalBars = 22;
   const errors  = isDegraded ? degradedErrors : normalErrors;
 
@@ -70,7 +72,7 @@ export function HealthSection({
           )}
         </div>
 
-        {/* prototype degrade toggle */}
+        {onToggleDegrade && (
         <button
           onClick={onToggleDegrade}
           style={{
@@ -89,6 +91,7 @@ export function HealthSection({
           <FlaskConical size={12} aria-hidden />
           {isDegraded ? "Restore normal" : "Simulate incident"}
         </button>
+        )}
       </div>
 
       {/* health cards */}

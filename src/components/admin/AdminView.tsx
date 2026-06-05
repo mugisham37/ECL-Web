@@ -11,11 +11,26 @@ import { TenantProfileSection } from "./sections/TenantProfileSection";
 import { SaveBar } from "@/components/shared/SaveBar";
 import { ToastStack, makeToastId } from "@/components/shared/ToastStack";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
+import { useApiSession } from "@/hooks/use-api-session";
 import {
-  MOCK_MEMBERS, MOCK_SEGMENTS_ADMIN, MOCK_COLLATERAL, MOCK_TENANT_PROFILE,
-} from "@/lib/admin-mock";
+  fetchMembers,
+  fetchSegments,
+  fetchCollateral,
+  fetchTenantProfile,
+  updateTenantProfile,
+  closeTenant,
+  sendInvite,
+  updateMember,
+  removeMember,
+  updateSegment,
+  createSegment,
+  deleteSegment,
+  updateCollateral,
+  createCollateral,
+  deleteCollateral,
+} from "@/lib/api/admin";
 import type {
-  AdminSection, Member, AdminSegment, CollateralType,
+  AdminSection, Member, MemberRole, AdminSegment, CollateralType,
   TenantProfile, ModalKind, ToastItem,
 } from "@/lib/admin-types";
 
@@ -30,13 +45,14 @@ const FADE = {
 };
 
 export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
-  const isAdmin = userRole === "Administrator";
+  const isAdmin = userRole === "Admin" || userRole === "Administrator";
+  const { token, tenantId } = useApiSession();
 
   const [activeSection, setActiveSection] = useState<AdminSection>("members");
-  const [members,    setMembers]    = useState<Member[]>([...MOCK_MEMBERS]);
-  const [segments,   setSegments]   = useState<AdminSegment[]>([...MOCK_SEGMENTS_ADMIN]);
-  const [collateral, setCollateral] = useState<CollateralType[]>([...MOCK_COLLATERAL]);
-  const [profile,    setProfile]    = useState<TenantProfile>({ ...MOCK_TENANT_PROFILE });
+  const [members,    setMembers]    = useState<Member[]>([]);
+  const [segments,   setSegments]   = useState<AdminSegment[]>([]);
+  const [collateral, setCollateral] = useState<CollateralType[]>([]);
+  const [profile,    setProfile]    = useState<TenantProfile>({ name: "", reportingCadence: "Monthly", currency: "USD", timezone: "UTC" });
   const [dirtySection, setDirtySection] = useState<AdminSection | null>(null);
   const [modal,    setModal]    = useState<ModalKind>(null);
   const [toasts,   setToasts]   = useState<ToastItem[]>([]);
@@ -44,11 +60,6 @@ export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
 
   // Snapshot for discard
   const snapshots = useRef({ members, segments, collateral, profile });
-
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const toast = useCallback((message: string, kind: ToastItem["kind"] = "success") => {
     const id = makeToastId();
@@ -59,6 +70,32 @@ export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  useEffect(() => {
+    if (!token || !tenantId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [m, s, c, p] = await Promise.all([
+          fetchMembers(token, tenantId),
+          fetchSegments(token, tenantId),
+          fetchCollateral(token, tenantId),
+          fetchTenantProfile(token, tenantId),
+        ]);
+        if (cancelled) return;
+        setMembers(m);
+        setSegments(s);
+        setCollateral(c);
+        setProfile(p);
+        snapshots.current = { members: m, segments: s, collateral: c, profile: p };
+      } catch {
+        if (!cancelled) toast("Failed to load admin data.", "danger");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, tenantId, toast]);
+
   function markDirty(section: AdminSection) {
     if (dirtySection !== section) {
       snapshots.current = { members, segments, collateral, profile };
@@ -66,10 +103,114 @@ export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
     }
   }
 
-  function handleSave() {
-    setDirtySection(null);
-    toast("Changes saved. They apply to future runs.");
+  async function reloadMembers() {
+    if (!token || !tenantId) return;
+    const m = await fetchMembers(token, tenantId);
+    setMembers(m);
+    snapshots.current.members = m;
   }
+
+  async function handleSave() {
+    if (!token || !tenantId) return;
+    try {
+      if (dirtySection === "profile") {
+        await updateTenantProfile(token, tenantId, {
+          name: profile.name,
+          reporting_cadence: profile.reportingCadence.toLowerCase(),
+          timezone: profile.timezone,
+        });
+      } else if (dirtySection === "segments") {
+        const snap = snapshots.current.segments;
+        for (const seg of segments) {
+          if (seg.id.startsWith("s-")) {
+            await createSegment(token, tenantId, { name: seg.name, code: seg.code || undefined });
+          } else {
+            const orig = snap.find((s) => s.id === seg.id);
+            if (
+              !orig ||
+              orig.name !== seg.name ||
+              orig.code !== seg.code ||
+              orig.disabled !== seg.disabled
+            ) {
+              await updateSegment(token, tenantId, seg.id, {
+                name: seg.name,
+                code: seg.code || undefined,
+                is_active: !seg.disabled,
+              });
+            }
+          }
+        }
+        for (const orig of snap) {
+          if (!segments.find((s) => s.id === orig.id) && !orig.id.startsWith("s-")) {
+            await deleteSegment(token, tenantId, orig.id);
+          }
+        }
+        const fresh = await fetchSegments(token, tenantId);
+        setSegments(fresh);
+        snapshots.current.segments = fresh;
+      } else if (dirtySection === "collateral") {
+        const snap = snapshots.current.collateral;
+        for (const item of collateral) {
+          if (item.id.startsWith("c-")) {
+            await createCollateral(token, tenantId, {
+              name: item.name,
+              haircut: Number(item.haircut),
+              time_to_realize: Number(item.timeToRealize),
+            });
+          } else {
+            const orig = snap.find((c) => c.id === item.id);
+            if (
+              !orig ||
+              orig.name !== item.name ||
+              orig.haircut !== item.haircut ||
+              orig.timeToRealize !== item.timeToRealize
+            ) {
+              await updateCollateral(token, tenantId, item.id, {
+                name: item.name,
+                haircut: Number(item.haircut),
+                time_to_realize: Number(item.timeToRealize),
+              });
+            }
+          }
+        }
+        for (const orig of snap) {
+          if (!collateral.find((c) => c.id === orig.id) && !orig.id.startsWith("c-")) {
+            await deleteCollateral(token, tenantId, orig.id);
+          }
+        }
+        const fresh = await fetchCollateral(token, tenantId);
+        setCollateral(fresh);
+        snapshots.current.collateral = fresh;
+      }
+      setDirtySection(null);
+      toast("Changes saved. They apply to future runs.");
+    } catch {
+      toast("Failed to save changes.", "danger");
+    }
+  }
+
+  const memberActions = isAdmin && token && tenantId ? {
+    onInvite: async (email: string, role: MemberRole) => {
+      await sendInvite(token, tenantId, email, role);
+      await reloadMembers();
+    },
+    onRoleChange: async (memberId: string, newRole: MemberRole) => {
+      await updateMember(token, tenantId, memberId, { role: newRole });
+      await reloadMembers();
+    },
+    onDisable: async (memberId: string) => {
+      await updateMember(token, tenantId, memberId, { status: "disabled" });
+      await reloadMembers();
+    },
+    onEnable: async (memberId: string) => {
+      await updateMember(token, tenantId, memberId, { status: "active" });
+      await reloadMembers();
+    },
+    onRemove: async (memberId: string) => {
+      await removeMember(token, tenantId, memberId);
+      await reloadMembers();
+    },
+  } : undefined;
 
   function handleDiscard() {
     const s = snapshots.current;
@@ -149,6 +290,7 @@ export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
                   members={members}
                   onUpdate={setMembers}
                   onToast={toast}
+                  actions={memberActions}
                 />
               </motion.div>
             )}
@@ -185,6 +327,14 @@ export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
                   onMarkDirty={() => markDirty("profile")}
                   onToast={toast}
                   onSetModal={setModal}
+                  onCloseTenant={
+                    isAdmin && token && tenantId
+                      ? async () => {
+                          await closeTenant(token, tenantId);
+                          toast("Closure request submitted.");
+                        }
+                      : undefined
+                  }
                 />
               </motion.div>
             )}

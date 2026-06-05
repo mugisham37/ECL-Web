@@ -9,11 +9,26 @@ interface OverviewSectionProps {
   auditEntries: AuditEntry[];
   isLoading: boolean;
   onNavigate: (section: "audit") => void;
+  uptime?: string;
+  trendPoints?: number[];
+  runsThisMonth?: number;
+  runsToday?: number;
+  mrrTotal?: number;
 }
 
-const TREND_POINTS = [120, 135, 128, 142, 155, 138, 90, 95, 160, 148, 152, 144, 158, 147];
+const DEFAULT_TREND = [120, 135, 128, 142, 155, 138, 90, 95, 160, 148, 152, 144, 158, 147];
 
-export function OverviewSection({ tenants, auditEntries, isLoading, onNavigate }: OverviewSectionProps) {
+export function OverviewSection({
+  tenants,
+  auditEntries,
+  isLoading,
+  onNavigate,
+  uptime = "99.98%",
+  trendPoints,
+  runsThisMonth,
+  runsToday,
+  mrrTotal,
+}: OverviewSectionProps) {
   if (isLoading) {
     return (
       <div>
@@ -32,8 +47,9 @@ export function OverviewSection({ tenants, auditEntries, isLoading, onNavigate }
   const active    = tenants.filter((t) => t.status === "active").length;
   const trial     = tenants.filter((t) => t.status === "trial").length;
   const suspended = tenants.filter((t) => t.status === "suspended").length;
-  const totalMrr  = tenants.reduce((s, t) => s + t.mrr, 0);
-  const totalRuns = tenants.reduce((s, t) => s + t.runs, 0);
+  const totalMrr  = mrrTotal ?? tenants.reduce((s, t) => s + t.mrr, 0);
+  const totalRuns = runsThisMonth ?? tenants.reduce((s, t) => s + t.runs, 0);
+  const trend = trendPoints ?? DEFAULT_TREND;
 
   const planData: Array<[string, number, string]> = [
     ["Starter",    tenants.filter((t) => t.plan === "Starter").length,    "var(--text-subtle)"],
@@ -69,12 +85,12 @@ export function OverviewSection({ tenants, auditEntries, isLoading, onNavigate }
         <div className="kpi">
           <div className="kpi-label">Runs this month</div>
           <div className="kpi-value">{totalRuns.toLocaleString("en-US")}</div>
-          <div className="kpi-subnote">{Math.round(totalRuns / 27)} today</div>
+          <div className="kpi-subnote">{runsToday ?? Math.round(totalRuns / 27)} today</div>
         </div>
 
         <div className="kpi">
           <div className="kpi-label">Uptime · 30d</div>
-          <div className="kpi-value">99.98%</div>
+          <div className="kpi-value">{uptime}</div>
         </div>
       </div>
 
@@ -86,7 +102,7 @@ export function OverviewSection({ tenants, auditEntries, isLoading, onNavigate }
             <div className="card-title">Runs across platform</div>
             <div className="card-sub">14 days · all tenants</div>
           </div>
-          <TrendLineChart points={TREND_POINTS} label="Platform run trend over 14 days" />
+          <TrendLineChart points={trend} label="Platform run trend over 14 days" />
         </div>
 
         {/* Donut chart */}

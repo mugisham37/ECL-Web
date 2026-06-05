@@ -1,0 +1,41 @@
+import "@auth/core/types";
+import "@auth/core/jwt";
+
+declare module "@auth/core/types" {
+  interface Session {
+    accessToken: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      tenantId: string;
+      tenantName: string;
+      role: string;
+      isEmailVerified: boolean;
+      isOnboardingComplete: boolean;
+      isPlatformAdmin: boolean;
+    };
+  }
+
+  interface User {
+    accessToken?: string;
+    tenantId?: string;
+    tenantName?: string;
+    role?: string;
+    isEmailVerified?: boolean;
+    isOnboardingComplete?: boolean;
+    isPlatformAdmin?: boolean;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    accessToken?: string;
+    tenantId?: string;
+    tenantName?: string;
+    role?: string;
+    isEmailVerified?: boolean;
+    isOnboardingComplete?: boolean;
+    isPlatformAdmin?: boolean;
+  }
+}

@@ -8,9 +8,10 @@ interface AuditSectionProps {
   auditEntries: AuditEntry[];
   isLoading: boolean;
   onToast: (msg: string, kind?: ToastItem["kind"]) => void;
+  onExportCsv?: () => void;
 }
 
-export function AuditSection({ auditEntries, isLoading, onToast }: AuditSectionProps) {
+export function AuditSection({ auditEntries, isLoading, onToast, onExportCsv }: AuditSectionProps) {
   if (isLoading) {
     return (
       <div>
@@ -33,7 +34,7 @@ export function AuditSection({ auditEntries, isLoading, onToast }: AuditSectionP
         </h2>
         <button
           className="btn btn-secondary btn-sm"
-          onClick={() => onToast("CSV export is a stub in this prototype.", "info")}
+          onClick={() => (onExportCsv ? onExportCsv() : onToast("CSV export unavailable.", "info"))}
           style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
         >
           <Download size={13} aria-hidden />

@@ -7,10 +7,19 @@ import { MemberRow } from "../members/MemberRow";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import type { Member, MemberRole, ModalKind } from "@/lib/admin-types";
 
+export interface MemberActions {
+  onInvite: (email: string, role: MemberRole) => Promise<void>;
+  onRoleChange: (memberId: string, newRole: MemberRole) => Promise<void>;
+  onDisable: (memberId: string) => Promise<void>;
+  onEnable: (memberId: string) => Promise<void>;
+  onRemove: (memberId: string) => Promise<void>;
+}
+
 interface MembersSectionProps {
   members: Member[];
   onUpdate: (members: Member[]) => void;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
+  actions?: MemberActions;
 }
 
 function adminCount(members: Member[]) {
@@ -21,7 +30,7 @@ function initials(email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function MembersSection({ members, onUpdate, onToast }: MembersSectionProps) {
+export function MembersSection({ members, onUpdate, onToast, actions }: MembersSectionProps) {
   const [modal, setModal] = useState<ModalKind>(null);
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -39,26 +48,43 @@ export function MembersSection({ members, onUpdate, onToast }: MembersSectionPro
     setModal({ type: "confirm-role", member: m, newRole, index });
   }
 
-  function confirmRoleChange() {
+  async function confirmRoleChange() {
     if (modal?.type !== "confirm-role") return;
-    const { index, newRole } = modal;
-    const next = members.map((m, i) => i === index ? { ...m, role: newRole } : m);
-    onUpdate(next);
-    onToast(`${modal.member.name} is now ${newRole}.`);
-    setModal(null);
+    const { index, newRole, member } = modal;
+    try {
+      if (actions) {
+        await actions.onRoleChange(member.id, newRole);
+      } else {
+        onUpdate(members.map((m, i) => i === index ? { ...m, role: newRole } : m));
+      }
+      onToast(`${member.name} is now ${newRole}.`);
+      setModal(null);
+    } catch {
+      onToast("Failed to change role.", "danger");
+    }
   }
 
-  function handleDisable(index: number) {
+  async function handleDisable(index: number) {
     const m = members[index];
     if (m.role === "Admin" && admins === 1) { onToast("Can't disable the last Admin.", "danger"); return; }
-    onUpdate(members.map((x, i) => i === index ? { ...x, status: "disabled" } : x));
-    onToast(`${m.name} disabled.`, "info");
+    try {
+      if (actions) await actions.onDisable(m.id);
+      else onUpdate(members.map((x, i) => i === index ? { ...x, status: "disabled" } : x));
+      onToast(`${m.name} disabled.`, "info");
+    } catch {
+      onToast("Failed to disable member.", "danger");
+    }
   }
 
-  function handleEnable(index: number) {
+  async function handleEnable(index: number) {
     const m = members[index];
-    onUpdate(members.map((x, i) => i === index ? { ...x, status: "active" } : x));
-    onToast(`${m.name} re-enabled.`);
+    try {
+      if (actions) await actions.onEnable(m.id);
+      else onUpdate(members.map((x, i) => i === index ? { ...x, status: "active" } : x));
+      onToast(`${m.name} re-enabled.`);
+    } catch {
+      onToast("Failed to enable member.", "danger");
+    }
   }
 
   function handleResendInvite(m: Member) {
@@ -71,12 +97,17 @@ export function MembersSection({ members, onUpdate, onToast }: MembersSectionPro
     onToast("Invite revoked.", "info");
   }
 
-  function confirmRemove() {
+  async function confirmRemove() {
     if (modal?.type !== "confirm-remove") return;
     const m = modal.member;
-    onUpdate(members.filter((x) => x.id !== m.id));
-    onToast(`${m.name} removed.`, "info");
-    setModal(null);
+    try {
+      if (actions) await actions.onRemove(m.id);
+      else onUpdate(members.filter((x) => x.id !== m.id));
+      onToast(`${m.name} removed.`, "info");
+      setModal(null);
+    } catch {
+      onToast("Failed to remove member.", "danger");
+    }
   }
 
   function handleRemove(index: number) {
@@ -85,21 +116,29 @@ export function MembersSection({ members, onUpdate, onToast }: MembersSectionPro
     setModal({ type: "confirm-remove", member: m });
   }
 
-  function sendInvite() {
+  async function sendInvite() {
     const email = inviteEmail.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setInviteErr(true); return; }
-    const newMember: Member = {
-      id: `inv-${Date.now()}`,
-      name: email, email,
-      initials: initials(email),
-      role: inviteRole,
-      status: "invited",
-      lastActive: "Invited just now",
-    };
-    onUpdate([...members, newMember]);
-    onToast(`Invite sent to ${email}.`);
-    setModal(null);
-    setInviteEmail(""); setInviteRole("Analyst"); setInviteErr(false);
+    try {
+      if (actions) {
+        await actions.onInvite(email, inviteRole);
+      } else {
+        const newMember: Member = {
+          id: `inv-${Date.now()}`,
+          name: email, email,
+          initials: initials(email),
+          role: inviteRole,
+          status: "invited",
+          lastActive: "Invited just now",
+        };
+        onUpdate([...members, newMember]);
+      }
+      onToast(`Invite sent to ${email}.`);
+      setModal(null);
+      setInviteEmail(""); setInviteRole("Analyst"); setInviteErr(false);
+    } catch {
+      onToast("Failed to send invite.", "danger");
+    }
   }
 
   return (

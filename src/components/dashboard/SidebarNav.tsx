@@ -11,6 +11,7 @@ import {
   Settings,
   Terminal,
 } from "lucide-react";
+import { useApiSession } from "@/hooks/use-api-session";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
@@ -32,6 +33,11 @@ interface SidebarNavProps {
 
 export function SidebarNav({ isCollapsed = false, onLinkClick }: SidebarNavProps) {
   const pathname = usePathname();
+  const { isPlatformAdmin } = useApiSession();
+  const manageNav = MANAGE_NAV.filter((item) => {
+    if (item.href === "/platform") return isPlatformAdmin;
+    return true;
+  });
 
   function NavLink({
     href,
@@ -143,7 +149,7 @@ export function SidebarNav({ isCollapsed = false, onLinkClick }: SidebarNavProps
         )}
       </AnimatePresence>
 
-      {MANAGE_NAV.map((item) => (
+      {manageNav.map((item) => (
         <NavLink key={item.href} {...item} />
       ))}
     </nav>

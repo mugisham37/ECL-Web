@@ -15,14 +15,28 @@ import { AuditSection } from "./sections/AuditSection";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { ToastStack, makeToastId } from "@/components/shared/ToastStack";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
+import { useApiSession } from "@/hooks/use-api-session";
 import {
-  MOCK_TENANTS, MOCK_PLATFORM_USERS, MOCK_HEALTH_SERVICES,
-  MOCK_ENGINES, MOCK_AUDIT, MOCK_HEALTH_ERRORS_NORMAL, MOCK_HEALTH_ERRORS_DEGRADED,
-} from "@/lib/superadmin-mock";
+  fetchPlatformTenants,
+  fetchPlatformUsers,
+  fetchPlatformHealth,
+  fetchEngineVersions,
+  fetchPlatformOverview,
+  fetchAuditLogs,
+  provisionTenant,
+  suspendTenant,
+  reactivateTenant,
+  extendTrial,
+  impersonateTenant,
+  promoteEngine,
+  downloadAuditCsv,
+} from "@/lib/api/platform";
+import { mapAuditLog } from "@/lib/api/mappers";
 import type {
-  SuperAdminSection, TenantRecord, EngineVersion,
-  TenantStatus, SuperAdminModalKind,
+  SuperAdminSection, TenantRecord, EngineVersion, PlatformUser,
+  TenantStatus, SuperAdminModalKind, AuditEntry,
 } from "@/lib/superadmin-types";
+import type { PlatformHealth } from "@/lib/api/platform";
 import type { ToastItem } from "@/lib/admin-types";
 
 const FADE = {
@@ -32,22 +46,82 @@ const FADE = {
 };
 
 export function SuperAdminView() {
+  const { token } = useApiSession();
   const [activeSection,     setActiveSection]     = useState<SuperAdminSection>("overview");
-  const [tenants,           setTenants]           = useState<TenantRecord[]>([...MOCK_TENANTS]);
-  const [engines,           setEngines]           = useState<EngineVersion[]>([...MOCK_ENGINES]);
+  const [tenants,           setTenants]           = useState<TenantRecord[]>([]);
+  const [engines,           setEngines]           = useState<EngineVersion[]>([]);
+  const [overview,          setOverview]          = useState<Awaited<ReturnType<typeof fetchPlatformOverview>> | null>(null);
+  const [users,             setUsers]             = useState<PlatformUser[]>([]);
+  const [health,            setHealth]            = useState<PlatformHealth | null>(null);
+  const [audit,             setAudit]             = useState<AuditEntry[]>([]);
   const [tenantSearch,      setTenantSearch]      = useState("");
   const [tenantStatusFilter,setTenantStatusFilter]= useState<TenantStatus | "all">("all");
-  const [isDegraded,        setIsDegraded]        = useState(false);
+  const [usersLoading,      setUsersLoading]      = useState(false);
+  const [healthLoading,     setHealthLoading]     = useState(false);
+  const [auditLoading,      setAuditLoading]      = useState(false);
   const [drawerOpen,        setDrawerOpen]        = useState(false);
   const [drawerTenantIdx,   setDrawerTenantIdx]   = useState<number | null>(null);
   const [modal,             setModal]             = useState<SuperAdminModalKind>(null);
   const [toasts,            setToasts]            = useState<ToastItem[]>([]);
   const [isLoading,         setIsLoading]         = useState(true);
 
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
+  const toast = useCallback((message: string, kind: ToastItem["kind"] = "success") => {
+    const id = makeToastId();
+    setToasts((prev) => [...prev, { id, message, kind }]);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [t, e, o] = await Promise.all([
+          fetchPlatformTenants(token),
+          fetchEngineVersions(token),
+          fetchPlatformOverview(token),
+        ]);
+        if (cancelled) return;
+        setTenants(t);
+        setEngines(e);
+        setOverview(o);
+      } catch {
+        if (!cancelled) toast("Failed to load platform data.", "danger");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, toast]);
+
+  useEffect(() => {
+    if (!token) return;
+    if (activeSection === "users" && users.length === 0) {
+      setUsersLoading(true);
+      fetchPlatformUsers(token)
+        .then(setUsers)
+        .catch(() => toast("Failed to load users.", "danger"))
+        .finally(() => setUsersLoading(false));
+    }
+    if (activeSection === "health" && !health) {
+      setHealthLoading(true);
+      fetchPlatformHealth(token)
+        .then(setHealth)
+        .catch(() => toast("Failed to load health.", "danger"))
+        .finally(() => setHealthLoading(false));
+    }
+    if (activeSection === "audit" && audit.length === 0) {
+      setAuditLoading(true);
+      fetchAuditLogs(token)
+        .then(setAudit)
+        .catch(() => toast("Failed to load audit log.", "danger"))
+        .finally(() => setAuditLoading(false));
+    }
+  }, [token, activeSection, users.length, health, audit.length, toast]);
+
+  const isDegraded = health?.overall_state === "degraded";
+  const overviewAudit: AuditEntry[] = overview?.recent_audit?.map((e) =>
+    mapAuditLog(e as Parameters<typeof mapAuditLog>[0]),
+  ) ?? [];
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -59,11 +133,6 @@ export function SuperAdminView() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [modal, drawerOpen]);
-
-  const toast = useCallback((message: string, kind: ToastItem["kind"] = "success") => {
-    const id = makeToastId();
-    setToasts((prev) => [...prev, { id, message, kind }]);
-  }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -84,38 +153,105 @@ export function SuperAdminView() {
     setDrawerTenantIdx(null);
   }
 
-  function handleSuspendConfirm(idx: number) {
-    const name = tenants[idx].name;
-    setTenants((prev) =>
-      prev.map((t, i) => i === idx ? { ...t, status: "suspended" as const, mrr: 0 } : t)
-    );
-    setModal(null);
-    closeDrawer();
-    toast(`${name} suspended.`, "danger");
+  async function reloadTenants() {
+    if (!token) return;
+    const t = await fetchPlatformTenants(token);
+    setTenants(t);
   }
 
-  function handleEnginePromote(idx: number) {
+  async function handleSuspendConfirm(idx: number) {
+    if (!token) return;
+    const tenant = tenants[idx];
+    try {
+      await suspendTenant(token, tenant.id);
+      await reloadTenants();
+      setModal(null);
+      closeDrawer();
+      toast(`${tenant.name} suspended.`, "danger");
+    } catch {
+      toast("Failed to suspend tenant.", "danger");
+    }
+  }
+
+  async function handleEnginePromote(idx: number) {
+    if (!token) return;
     const version = engines[idx].version;
-    setEngines((prev) => prev.map((e, i) => ({ ...e, isCurrent: i === idx })));
-    setModal(null);
-    toast(`${version} promoted to default.`);
+    try {
+      await promoteEngine(token, version);
+      const e = await fetchEngineVersions(token);
+      setEngines(e);
+      setModal(null);
+      toast(`${version} promoted to default.`);
+    } catch {
+      toast("Failed to promote engine.", "danger");
+    }
   }
 
-  function handleProvision(data: { name: string; plan: string; region: string; email: string; trial: boolean }) {
-    const newTenant: TenantRecord = {
-      id: `t${Date.now()}`,
-      name: data.name,
-      mark: data.name.slice(0, 2).toUpperCase(),
-      color: "#2BB6C9",
-      plan: data.plan as TenantRecord["plan"],
-      status: data.trial ? "trial" : "active",
-      users: 1, runs: 0,
-      created: "Jun 2026",
-      mrr: data.trial ? 0 : (data.plan === "Starter" ? 1200 : data.plan === "Growth" ? 3500 : 9800),
-    };
-    setTenants((prev) => [newTenant, ...prev]);
-    handleSectionChange("tenants");
-    toast(`${data.name} provisioned. Setup link emailed.`);
+  async function handleProvision(data: { name: string; plan: string; region: string; email: string; trial: boolean }) {
+    if (!token) return;
+    try {
+      await provisionTenant(token, {
+        name: data.name,
+        admin_email: data.email,
+        admin_name: data.email.split("@")[0],
+        plan: data.plan.toLowerCase(),
+        region: data.region.split(" ")[0],
+        start_trial: data.trial,
+      });
+      await reloadTenants();
+      handleSectionChange("tenants");
+      toast(`${data.name} provisioned. Setup link emailed.`);
+    } catch {
+      toast("Failed to provision tenant.", "danger");
+    }
+  }
+
+  async function handleReactivate(idx: number) {
+    if (!token) return;
+    const tenant = tenants[idx];
+    try {
+      await reactivateTenant(token, tenant.id);
+      await reloadTenants();
+      closeDrawer();
+      toast(`${tenant.name} reactivated.`);
+    } catch {
+      toast("Failed to reactivate tenant.", "danger");
+    }
+  }
+
+  async function handleExtendTrial(idx: number) {
+    if (!token) return;
+    const tenant = tenants[idx];
+    try {
+      await extendTrial(token, tenant.id, 14);
+      closeDrawer();
+      toast(`Trial for ${tenant.name} extended 14 days.`, "info");
+    } catch {
+      toast("Failed to extend trial.", "danger");
+    }
+  }
+
+  async function handleImpersonate(idx: number) {
+    if (!token) return;
+    const tenant = tenants[idx];
+    try {
+      await impersonateTenant(token, tenant.id);
+      setModal(null);
+      closeDrawer();
+      toast(`Impersonation session started for ${tenant.name}. Logged to audit.`, "info");
+    } catch {
+      toast("Failed to start impersonation.", "danger");
+    }
+  }
+
+  async function handleExportCsv() {
+    if (!token) return;
+    try {
+      await downloadAuditCsv(token);
+      toast("CSV export downloaded.", "info");
+    } catch {
+      toast("Failed to export CSV.", "danger");
+    }
   }
 
   // derived: filtered tenants
@@ -214,9 +350,14 @@ export function SuperAdminView() {
               <motion.div key="overview" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <OverviewSection
                   tenants={tenants}
-                  auditEntries={MOCK_AUDIT}
+                  auditEntries={overviewAudit}
                   isLoading={false}
                   onNavigate={handleSectionChange}
+                  uptime={overview?.uptime_30d}
+                  trendPoints={overview?.trend_14d?.map((p) => p.runs)}
+                  runsThisMonth={overview?.kpis?.runs_this_month}
+                  runsToday={overview?.kpis?.runs_today}
+                  mrrTotal={overview?.kpis?.mrr_total_usd}
                 />
               </motion.div>
             )}
@@ -240,8 +381,8 @@ export function SuperAdminView() {
             {activeSection === "users" && (
               <motion.div key="users" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <UsersSection
-                  users={MOCK_PLATFORM_USERS}
-                  isLoading={false}
+                  users={users}
+                  isLoading={usersLoading}
                   onToast={toast}
                 />
               </motion.div>
@@ -251,11 +392,11 @@ export function SuperAdminView() {
               <motion.div key="health" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <HealthSection
                   isDegraded={isDegraded}
-                  normalServices={MOCK_HEALTH_SERVICES}
-                  normalErrors={MOCK_HEALTH_ERRORS_NORMAL}
-                  degradedErrors={MOCK_HEALTH_ERRORS_DEGRADED}
-                  onToggleDegrade={() => setIsDegraded((v) => !v)}
-                  isLoading={false}
+                  normalServices={health?.services ?? []}
+                  normalErrors={health?.recentErrors ?? []}
+                  degradedErrors={health?.recentErrors ?? []}
+                  queueStats={health?.queue_stats}
+                  isLoading={healthLoading}
                 />
               </motion.div>
             )}
@@ -273,8 +414,9 @@ export function SuperAdminView() {
             {activeSection === "audit" && (
               <motion.div key="audit" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <AuditSection
-                  auditEntries={MOCK_AUDIT}
-                  isLoading={false}
+                  auditEntries={audit}
+                  isLoading={auditLoading}
+                  onExportCsv={handleExportCsv}
                   onToast={toast}
                 />
               </motion.div>
@@ -289,9 +431,9 @@ export function SuperAdminView() {
         tenantIdx={drawerTenantIdx}
         tenants={tenants}
         onClose={closeDrawer}
-        onUpdateTenants={setTenants}
         onOpenModal={setModal}
-        onToast={toast}
+        onReactivate={drawerTenantIdx !== null ? () => handleReactivate(drawerTenantIdx) : undefined}
+        onExtendTrial={drawerTenantIdx !== null ? () => handleExtendTrial(drawerTenantIdx) : undefined}
       />
 
       {/* Impersonate modal */}
@@ -311,11 +453,7 @@ export function SuperAdminView() {
           }
           primaryLabel="Start session"
           onClose={() => setModal(null)}
-          onConfirm={() => {
-            setModal(null);
-            closeDrawer();
-            toast(`Impersonation session started for ${modalTenant.name}. Logged to audit.`, "info");
-          }}
+          onConfirm={() => handleImpersonate(modal.tenantIdx)}
         />
       )}
 

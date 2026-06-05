@@ -4,7 +4,8 @@ import type { NotifPrefs } from "@/lib/settings-types";
 
 interface NotifSectionProps {
   prefs: NotifPrefs;
-  onChange: (prefs: NotifPrefs) => void;
+  onChange?: (prefs: NotifPrefs) => void;
+  onToggle?: (key: NotifKey, value: boolean) => void;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
 }
 
@@ -31,9 +32,11 @@ const GROUPS: Array<{
   },
 ];
 
-export function NotificationsSection({ prefs, onChange, onToast }: NotifSectionProps) {
+export function NotificationsSection({ prefs, onChange, onToggle, onToast }: NotifSectionProps) {
   function toggle(key: NotifKey) {
-    onChange({ ...prefs, [key]: !prefs[key] });
+    const next = !prefs[key];
+    if (onToggle) onToggle(key, next);
+    else onChange?.({ ...prefs, [key]: next });
     onToast("Notification preference saved.", "info");
   }
 

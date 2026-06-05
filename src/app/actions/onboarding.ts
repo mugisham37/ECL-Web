@@ -6,6 +6,8 @@ import { auth } from "@/lib/auth";
 
 export type OnboardingActionState = { error?: string } | undefined;
 
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+
 export async function finishOnboardingAction(
   _state: OnboardingActionState,
   formData: FormData
@@ -30,14 +32,65 @@ export async function finishOnboardingAction(
     return { error: validated.error.issues[0]?.message ?? "Please complete all required fields." };
   }
 
-  // TODO: call backend API to persist workspace configuration and send team invites
-  // const result = await createWorkspaceConfig(session.user.id, validated.data)
-  // if (!result.ok) return { error: result.message }
+  const { profile, segments, collateral, invites } = validated.data;
+  const tenantId = session.user.tenantId;
+
+  const body = {
+    profile: {
+      institution_name: profile.institutionName,
+      currency: profile.currency,
+      timezone: profile.timezone,
+      cadence: profile.cadence,
+    },
+    segments: segments.map((s) => ({ name: s.name, code: s.code ?? null })),
+    collateral: collateral.map((c) => ({
+      name: c.name,
+      haircut: c.haircut,
+      ttr: c.ttr,
+    })),
+    invites: invites.map((i) => ({ email: i.email, role: i.role })),
+  };
+
+  const res = await fetch(
+    `${BACKEND_URL}/api/v1/onboarding/${tenantId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return {
+      error:
+        (err as Record<string, string>).detail ??
+        "Failed to save workspace configuration.",
+    };
+  }
 
   redirect("/dashboard");
 }
 
-export async function saveAndExitAction(): Promise<void> {
-  // TODO: call backend API to persist current wizard progress
+export async function saveAndExitAction(
+  progress: Record<string, unknown>
+): Promise<void> {
+  const session = await auth();
+  if (!session) redirect("/sign-in");
+
+  const tenantId = session.user.tenantId;
+
+  await fetch(`${BACKEND_URL}/api/v1/onboarding/${tenantId}/save-progress`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ progress }),
+  }).catch(() => null); // best-effort save; don't block the redirect
+
   redirect("/dashboard");
 }

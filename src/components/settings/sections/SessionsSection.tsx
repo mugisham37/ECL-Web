@@ -7,7 +7,9 @@ import type { Session, ModalKind } from "@/lib/settings-types";
 interface SessionsSectionProps {
   sessions: Session[];
   modal: ModalKind;
-  onUpdate: (sessions: Session[]) => void;
+  onUpdate?: (sessions: Session[]) => void;
+  onRevokeOne?: (id: string) => void;
+  onRevokeAll?: () => void;
   onSetModal: (m: ModalKind) => void;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
   onSignOut: () => void;
@@ -18,15 +20,23 @@ function SessionIcon({ icon }: { icon: Session["icon"] }) {
   return icon === "phone" ? <Smartphone size={18} style={style} aria-hidden /> : <Laptop size={18} style={style} aria-hidden />;
 }
 
-export function SessionsSection({ sessions, modal, onUpdate, onSetModal, onToast, onSignOut }: SessionsSectionProps) {
+export function SessionsSection({ sessions, modal, onUpdate, onRevokeOne, onRevokeAll, onSetModal, onToast, onSignOut }: SessionsSectionProps) {
   function signOutOne(id: string) {
+    if (onRevokeOne) {
+      onRevokeOne(id);
+      return;
+    }
     const s = sessions.find((x) => x.id === id);
-    onUpdate(sessions.filter((x) => x.id !== id));
+    onUpdate?.(sessions.filter((x) => x.id !== id));
     if (s) onToast(`Signed out of ${s.title}.`, "info");
   }
 
   function confirmSignOutAll() {
-    onUpdate(sessions.filter((s) => s.current));
+    if (onRevokeAll) {
+      onRevokeAll();
+      return;
+    }
+    onUpdate?.(sessions.filter((s) => s.current));
     onToast("Signed out of all other devices.", "info");
     onSetModal(null);
   }

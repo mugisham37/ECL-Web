@@ -1,5 +1,7 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/dashboard/AppShell";
-import { getMockDashboardData } from "@/lib/dashboard-mock";
+import { formatRole } from "@/lib/api/mappers";
 
 function getInitials(name: string): string {
   return name
@@ -15,23 +17,32 @@ export default async function ShellLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Session is already verified by the parent (protected)/layout.tsx
-  // Use mock data for shell chrome until backend is wired
-  const mock = getMockDashboardData("healthy");
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/sign-in");
+  }
 
   const user = {
-    name: mock.user.name,
-    email: mock.user.email,
-    initials: getInitials(mock.user.name),
-    role: mock.user.role,
+    name: session.user.name ?? "",
+    email: session.user.email ?? "",
+    initials: getInitials(session.user.name ?? "U"),
+    role: formatRole(session.user.role ?? "analyst"),
+  };
+
+  const tenant = {
+    id: session.user.tenantId ?? "",
+    name: session.user.tenantName ?? "Workspace",
+    currency: "USD",
+    role: formatRole(session.user.role ?? "analyst") as "Administrator" | "Analyst" | "Reviewer",
+    initials: getInitials(session.user.tenantName ?? "W").slice(0, 2),
   };
 
   return (
     <AppShell
       user={user}
-      tenant={mock.tenant}
-      allTenants={mock.allTenants}
-      notifications={mock.notifications}
+      tenant={tenant}
+      allTenants={[tenant]}
+      notifications={[]}
     >
       {children}
     </AppShell>

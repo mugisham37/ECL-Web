@@ -26,7 +26,14 @@ export function SkipModal() {
   async function handleSaveAndExit() {
     dispatch({ type: "FINISH_DONE", variant: "saved" });
     close();
-    await saveAndExitAction();
+    const progress: Record<string, unknown> = {
+      step: state.step,
+      profile: state.profile,
+      segments: state.segments,
+      collateral: state.collateral,
+      invites: state.invites,
+    };
+    await saveAndExitAction(progress);
   }
 
   return (

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Menu, Plus } from "lucide-react";
+import { useApiSession } from "@/hooks/use-api-session";
 import { TenantMenu } from "./TenantMenu";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserMenu } from "./UserMenu";
@@ -27,6 +29,8 @@ export function Topbar({
   onSwitchTenant,
 }: TopbarProps) {
   const [activeTenant, setActiveTenant] = useState<Tenant>(tenant);
+  const { role } = useApiSession();
+  const canCreateRun = role !== "reviewer";
 
   function handleMenuPress() {
     if (window.innerWidth < 768) onOpenMobileDrawer();
@@ -75,37 +79,32 @@ export function Topbar({
 
       {/* Right */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {/* New Run */}
-        <button
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: "var(--control-h)",
-            padding: "0 14px",
-            background: "var(--accent)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "var(--r-sm)",
-            fontFamily: "var(--font-ui)",
-            fontSize: "var(--fs-body)",
-            fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            transition: "background var(--t-micro)",
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              "var(--accent-hover)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              "var(--accent)")
-          }
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">New Run</span>
-        </button>
+        {canCreateRun && (
+          <Link
+            href="/runs/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: "var(--control-h)",
+              padding: "0 14px",
+              background: "var(--accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "var(--r-sm)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--fs-body)",
+              fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "background var(--t-micro)",
+              textDecoration: "none",
+            }}
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">New Run</span>
+          </Link>
+        )}
 
         {/* Notifications */}
         <NotificationsDropdown notifications={notifications} />

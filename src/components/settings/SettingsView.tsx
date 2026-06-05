@@ -11,7 +11,16 @@ import { SessionsSection } from "./sections/SessionsSection";
 import { SaveBar } from "@/components/shared/SaveBar";
 import { ToastStack, makeToastId } from "@/components/shared/ToastStack";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
-import { MOCK_USER_PROFILE, MOCK_NOTIF_PREFS, MOCK_SESSIONS } from "@/lib/settings-mock";
+import { useApiSession } from "@/hooks/use-api-session";
+import {
+  fetchMe,
+  fetchNotificationPrefs,
+  fetchSessions,
+  updateNotificationPrefs,
+  updateProfile,
+  revokeSession,
+  revokeOtherSessions,
+} from "@/lib/api/settings";
 import type { SettingsSection, NotifPrefs, Session, ModalKind, ToastItem } from "@/lib/settings-types";
 
 const FADE = {
@@ -21,20 +30,20 @@ const FADE = {
 };
 
 export function SettingsView() {
+  const { token } = useApiSession();
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
-  const [name,    setName]    = useState(MOCK_USER_PROFILE.name);
-  const [title,   setTitle]   = useState(MOCK_USER_PROFILE.title);
-  const [notifs,  setNotifs]  = useState<NotifPrefs>({ ...MOCK_NOTIF_PREFS });
-  const [sessions,setSessions]= useState<Session[]>([...MOCK_SESSIONS]);
+  const [name,    setName]    = useState("");
+  const [title,   setTitle]   = useState("");
+  const [email,   setEmail]   = useState("");
+  const [role,    setRole]    = useState("");
+  const [notifs,  setNotifs]  = useState<NotifPrefs>({
+    runCompleted: true, runFailed: true, weeklySummary: false, memberJoined: true, productUpdates: false,
+  });
+  const [sessions,setSessions]= useState<Session[]>([]);
   const [profileDirty, setProfileDirty] = useState(false);
   const [modal,   setModal]   = useState<ModalKind>(null);
   const [toasts,  setToasts]  = useState<ToastItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const toast = useCallback((message: string, kind: ToastItem["kind"] = "success") => {
     const id = makeToastId();
@@ -45,19 +54,88 @@ export function SettingsView() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [profile, prefs, sess] = await Promise.all([
+          fetchMe(token),
+          fetchNotificationPrefs(token),
+          fetchSessions(token),
+        ]);
+        if (cancelled) return;
+        setName(profile.name);
+        setTitle(profile.title);
+        setEmail(profile.email);
+        setRole(profile.role);
+        setNotifs(prefs);
+        setSessions(sess);
+      } catch {
+        if (!cancelled) setToasts((prev) => [...prev, { id: makeToastId(), message: "Failed to load settings.", kind: "danger" }]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
   function handleNameChange(v: string)  { setName(v);  setProfileDirty(true); }
   function handleTitleChange(v: string) { setTitle(v); setProfileDirty(true); }
 
-  function handleSaveProfile() {
-    setProfileDirty(false);
-    toast("Profile saved.");
+  async function handleSaveProfile() {
+    if (!token) return;
+    try {
+      await updateProfile(token, { name, title });
+      setProfileDirty(false);
+      toast("Profile saved.");
+    } catch {
+      toast("Failed to save profile.", "danger");
+    }
   }
 
   function handleDiscardProfile() {
-    setName(MOCK_USER_PROFILE.name);
-    setTitle(MOCK_USER_PROFILE.title);
-    setProfileDirty(false);
-    toast("Changes discarded.", "info");
+    if (!token) return;
+    fetchMe(token).then((p) => {
+      setName(p.name);
+      setTitle(p.title);
+      setProfileDirty(false);
+      toast("Changes discarded.", "info");
+    });
+  }
+
+  async function handleNotifChange(key: keyof NotifPrefs, value: boolean) {
+    if (!token) return;
+    const next = { ...notifs, [key]: value };
+    setNotifs(next);
+    try {
+      await updateNotificationPrefs(token, next);
+    } catch {
+      toast("Failed to update preferences.", "danger");
+    }
+  }
+
+  async function handleRevokeSession(id: string) {
+    if (!token) return;
+    try {
+      await revokeSession(token, id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      toast("Session revoked.");
+    } catch {
+      toast("Failed to revoke session.", "danger");
+    }
+  }
+
+  async function handleRevokeOthers() {
+    if (!token) return;
+    try {
+      await revokeOtherSessions(token);
+      setSessions((prev) => prev.filter((s) => s.current));
+      setModal(null);
+      toast("Other sessions signed out.");
+    } catch {
+      toast("Failed to sign out other sessions.", "danger");
+    }
   }
 
   function handleSectionChange(section: SettingsSection) {
@@ -112,23 +190,23 @@ export function SettingsView() {
             {activeSection === "profile" && (
               <motion.div key="profile" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <ProfileSection
-                  profile={MOCK_USER_PROFILE}
+                  profile={{ name, title, email, role, initials: name.slice(0, 2).toUpperCase() }}
                   name={name}
                   title={title}
                   onNameChange={handleNameChange}
                   onTitleChange={handleTitleChange}
-                  onUploadClick={() => toast("Photo upload is a stub in this prototype.", "info")}
+                  onUploadClick={() => toast("Photo upload available via API.", "info")}
                 />
               </motion.div>
             )}
             {activeSection === "security" && (
               <motion.div key="security" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
-                <SecuritySection onToast={toast} />
+                <SecuritySection token={token} onToast={toast} />
               </motion.div>
             )}
             {activeSection === "notifications" && (
               <motion.div key="notifications" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
-                <NotificationsSection prefs={notifs} onChange={setNotifs} onToast={toast} />
+                <NotificationsSection prefs={notifs} onToggle={handleNotifChange} onToast={toast} />
               </motion.div>
             )}
             {activeSection === "appearance" && (
@@ -141,7 +219,8 @@ export function SettingsView() {
                 <SessionsSection
                   sessions={sessions}
                   modal={modal}
-                  onUpdate={setSessions}
+                  onRevokeOne={handleRevokeSession}
+                  onRevokeAll={handleRevokeOthers}
                   onSetModal={setModal}
                   onToast={toast}
                   onSignOut={handleSignOut}
