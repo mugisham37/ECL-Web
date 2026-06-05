@@ -1,17 +1,35 @@
 "use client";
 
-import { Check, Eye, Download } from "lucide-react";
+import { useState } from "react";
+import { Check, Eye, Download, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ResultKpiCard } from "../ResultKpiCard";
 import { useRunWizard } from "../RunWizardContext";
+import { useApiSession } from "@/hooks/use-api-session";
+import { getDownloadUrl } from "@/lib/api/runs";
 
 export function SuccessTerminal() {
   const { state } = useRunWizard();
+  const { token, tenantId } = useApiSession();
   const router = useRouter();
   const result = state.result;
+  const [downloading, setDownloading] = useState(false);
 
   if (!result) return null;
+
+  async function handleDownload() {
+    if (!token || !tenantId || !result) return;
+    setDownloading(true);
+    try {
+      const { url } = await getDownloadUrl(token, tenantId, result.fullId, "ECL_SUMMARY");
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      // non-fatal — user can try again from run detail
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <motion.div
@@ -40,6 +58,7 @@ export function SuccessTerminal() {
 
         <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
           <button
+            type="button"
             onClick={() => router.push(`/runs/${result.fullId}`)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -56,16 +75,20 @@ export function SuccessTerminal() {
             View results
           </button>
           <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               height: 44, padding: "0 20px",
               background: "var(--surface)", color: "var(--text)",
               border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
               fontSize: "var(--fs-h3)", fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
-              cursor: "pointer",
+              cursor: downloading ? "default" : "pointer",
+              opacity: downloading ? 0.7 : 1,
             }}
           >
-            <Download size={16} />
+            {downloading ? <Loader2 size={16} style={{ animation: "spin 0.7s linear infinite" }} /> : <Download size={16} />}
             Download workbooks
           </button>
         </div>

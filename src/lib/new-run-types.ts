@@ -33,6 +33,7 @@ export interface UploadedFile {
 // ── Validation ────────────────────────────────────────────────────────────
 
 export interface ValidationIssue {
+  id: string;
   level: "warn" | "block";
   title: string;
   location: string;    // "Sheet 1 · column F · 14 rows"
@@ -49,6 +50,7 @@ export interface ValidationResult {
   summary: string;
   subSummary: string;
   fileResults: ValidationFileResult[];
+  detectedSegments?: string[];
 }
 
 // ── Compute ────────────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ export interface NewRunState {
   step: NewRunStep;
   prevStep: NewRunStep;
   runName: string;
+  runId: string | null;
   pdFiles: UploadedFile[];
   lgdFile: UploadedFile | null;
   eadFile: UploadedFile | null;
@@ -98,12 +101,16 @@ export interface NewRunState {
   result: RunResult | null;
   failureDetails: { stage: string; message: string; ref: string } | null;
   cancelModalOpen: boolean;
+  uploadProgress: Record<string, number>;
+  uploadedFileIds: Record<string, string>;
+  acceptedWarningIds: string[];
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
 
 export type NewRunAction =
   | { type: "SET_RUN_NAME"; name: string }
+  | { type: "SET_RUN_ID"; runId: string }
   | { type: "ADD_PD_FILE"; file: UploadedFile }
   | { type: "REMOVE_PD_FILE"; id: string }
   | { type: "SET_LGD_FILE"; file: UploadedFile | null }
@@ -117,7 +124,11 @@ export type NewRunAction =
   | { type: "SET_RESULT"; result: RunResult }
   | { type: "SET_FAILURE"; details: { stage: string; message: string; ref: string } }
   | { type: "OPEN_CANCEL_MODAL" }
-  | { type: "CLOSE_CANCEL_MODAL" };
+  | { type: "CLOSE_CANCEL_MODAL" }
+  | { type: "SET_UPLOAD_PROGRESS"; fileId: string; progress: number }
+  | { type: "SET_UPLOADED_FILE_ID"; fileId: string; serverId: string }
+  | { type: "UPDATE_FILE_STATUS"; id: string; status: FileStatus; hash?: string; sheets?: number }
+  | { type: "SET_ACCEPTED_WARNING_IDS"; ids: string[] };
 
 // ── Mock seed files ───────────────────────────────────────────────────────
 

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { RunDetailView } from "@/components/runs/RunDetailView";
-import { getMockRunDetail } from "@/lib/runs-mock";
+import { fetchRun } from "@/lib/api/runs";
+import { mapRunDetail } from "@/lib/api/mappers";
+import { ApiError } from "@/lib/api/client";
 
 interface RunDetailPageProps {
   params: Promise<{ id: string }>;
@@ -9,13 +12,20 @@ interface RunDetailPageProps {
 
 export async function generateMetadata({ params }: RunDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const run = getMockRunDetail(id);
-  return { title: run ? `${run.name} — Runs — ECL Platform` : "Run — ECL Platform" };
+  return { title: `Run ${id.slice(0, 8)} — Runs — ECL Platform` };
 }
 
 export default async function RunDetailPage({ params }: RunDetailPageProps) {
   const { id } = await params;
-  const run = getMockRunDetail(id);
-  if (!run) notFound();
-  return <RunDetailView run={run} />;
+  const session = await auth();
+  if (!session?.user) redirect("/sign-in");
+
+  try {
+    const raw = await fetchRun(session.accessToken, session.user.tenantId, id);
+    const run = mapRunDetail(raw);
+    return <RunDetailView run={run} />;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    notFound();
+  }
 }

@@ -8,6 +8,56 @@ import type {
   TenantRecord,
   TenantStatus,
 } from "@/lib/superadmin-types";
+import type {
+  DashboardData,
+  DashboardState,
+  KpiData,
+  SegmentBar,
+  StageSlice,
+  TrendPoint,
+  Run,
+  Tenant,
+  AppShellUser,
+  BannerProps,
+} from "@/lib/dashboard-types";
+import type {
+  RunListItem,
+  RunDetail,
+  RunDetailStatus,
+  RunInputFile,
+  AuditEvent,
+  EngineInfo,
+} from "@/lib/runs-types";
+import type { ComputeStage } from "@/lib/new-run-types";
+import type {
+  SegmentData,
+  LoanRow,
+  LoanDetail,
+  MonthlyRundown,
+  RunContext,
+  PDMatrix,
+} from "@/lib/results-types";
+import type {
+  DashboardRaw,
+  DashboardKpiRaw,
+  DashboardRunRaw,
+} from "@/lib/api/dashboard";
+import type {
+  RunListItemRaw,
+  RunDetailRaw,
+  RunInputFileRaw,
+  AuditEventRaw,
+  EngineProgressRaw,
+  ValidationResultRaw,
+  ValidationIssueRaw,
+} from "@/lib/api/runs";
+import type {
+  SegmentDataRaw,
+  LoanRowRaw,
+  LoanDetailRaw,
+  MonthlyRundownRaw,
+  PortfolioRaw,
+} from "@/lib/api/results";
 
 export function formatRole(role: string): string {
   const map: Record<string, string> = {
@@ -271,4 +321,438 @@ export function mapEngineVersion(v: {
     tenantsPinned: v.tenants_pinned,
     changelog: v.changelog,
   };
+}
+
+// ── Dashboard mappers ─────────────────────────────────────────────────────
+
+function mapDashboardKpi(raw: DashboardKpiRaw): KpiData {
+  return {
+    id: raw.id,
+    label: raw.label,
+    helpText: raw.help_text,
+    currencyPrefix: raw.currency_prefix,
+    value: raw.value,
+    delta: raw.delta,
+    deltaDir: raw.delta_dir,
+    subNote: raw.sub_note,
+    staleAsOf: raw.stale_as_of,
+  };
+}
+
+function mapDashboardRun(raw: DashboardRunRaw): Run {
+  const statusMap: Record<string, Run["status"]> = {
+    complete: "success",
+    success: "success",
+    failed: "failed",
+    running: "running",
+    pd_running: "running",
+    lgd_running: "running",
+    ead_running: "running",
+    queued: "queued",
+  };
+  return {
+    id: raw.full_id ? raw.full_id.slice(0, 4) + "…" + raw.full_id.slice(-4) : raw.id,
+    period: raw.period,
+    byInitials: raw.by_initials,
+    byName: raw.by_name,
+    status: statusMap[raw.status] ?? "queued",
+    eclAmount: raw.ecl_amount,
+    currency: raw.currency,
+  };
+}
+
+function deriveDashboardState(raw: DashboardRaw): DashboardState {
+  if (raw.active_run) return "running";
+  if (!raw.runs || raw.runs.length === 0) return "empty";
+  const hasComplete = raw.runs.some((r) =>
+    ["complete", "success"].includes(r.status),
+  );
+  const latestFailed = raw.runs[0]?.status === "failed";
+  if (!hasComplete && latestFailed) return "failed";
+  if (!hasComplete) return "incomplete";
+  return "healthy";
+}
+
+function deriveBannerProps(
+  raw: DashboardRaw,
+  state: DashboardState,
+): BannerProps | undefined {
+  if (state === "running" && raw.active_run) {
+    return {
+      variant: "running",
+      progress: raw.active_run.progress ?? 0,
+    };
+  }
+  if (state === "failed" && raw.runs[0]) {
+    return {
+      variant: "failed",
+      failedAt: raw.runs[0].period,
+      errorRef: raw.runs[0].full_id ?? raw.runs[0].id,
+    };
+  }
+  if (state === "incomplete") {
+    return { variant: "incomplete" };
+  }
+  return undefined;
+}
+
+export function mapDashboardToPageData(
+  raw: DashboardRaw,
+  tenant: Tenant,
+  user: AppShellUser,
+  allTenants: Tenant[] = [],
+): DashboardData {
+  const state = deriveDashboardState(raw);
+  const bannerProps = deriveBannerProps(raw, state);
+
+  const kpis: KpiData[] = (raw.kpis ?? []).map(mapDashboardKpi);
+
+  const segments: SegmentBar[] = (raw.segments ?? []).map((s) => ({
+    name: s.name,
+    value: s.value,
+  }));
+
+  const stages: StageSlice[] = (raw.stages ?? []).map((s, i) => ({
+    stage: s.stage,
+    percent: s.percent,
+    colorVar: (s.color_var ?? (i + 1)) as StageSlice["colorVar"],
+  }));
+
+  const trend: TrendPoint[] = (raw.trend ?? []).map((t) => ({
+    label: t.label,
+    value: t.value,
+  }));
+
+  const runs: Run[] = (raw.runs ?? []).map(mapDashboardRun);
+
+  return {
+    state,
+    tenant,
+    allTenants: allTenants.length > 0 ? allTenants : [tenant],
+    user,
+    kpis,
+    segments,
+    stages,
+    trend,
+    runs,
+    notifications: [],
+    bannerProps,
+  };
+}
+
+// ── Run mappers ────────────────────────────────────────────────────────────
+
+const RUN_STATUS_MAP: Record<string, RunDetailStatus> = {
+  draft: "draft",
+  queued: "queued",
+  pd_running: "running",
+  lgd_running: "running",
+  ead_running: "running",
+  running: "running",
+  complete: "success",
+  success: "success",
+  failed: "failed",
+  deleted: "deleted",
+};
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function truncateHash(hash?: string): string {
+  if (!hash) return "—";
+  if (hash.length <= 8) return hash;
+  return hash.slice(0, 4) + "…" + hash.slice(-4);
+}
+
+function formatRunDate(iso: string): string {
+  const dt = new Date(iso);
+  return dt.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function mapRunListItem(raw: RunListItemRaw): RunListItem {
+  const status: RunDetailStatus = RUN_STATUS_MAP[raw.status] ?? "draft";
+  const fullId = raw.id;
+  const shortId = fullId.length > 8 ? fullId.slice(0, 4) + "…" + fullId.slice(-4) : fullId;
+
+  return {
+    id: shortId,
+    fullId,
+    name: raw.name ?? raw.reporting_period ?? "Unnamed Run",
+    period: raw.reporting_period ?? "—",
+    createdAt: raw.created_at ? formatRunDate(raw.created_at) : "—",
+    byInitials: raw.created_by_initials ?? "?",
+    byName: raw.created_by_name ?? "Unknown",
+    status,
+    eclAmount: raw.total_ecl ?? null,
+    coverage: raw.coverage_ratio != null ? `${Number(raw.coverage_ratio).toFixed(2)}%` : null,
+    currency: raw.currency ?? "USD",
+  };
+}
+
+function mapInputFile(raw: RunInputFileRaw): RunInputFile {
+  return {
+    type: raw.kind,
+    name: raw.filename,
+    size: formatFileSize(raw.size_bytes),
+    sheets: raw.sheet_count ?? 0,
+    validationStatus: (raw.validation_status as RunInputFile["validationStatus"]) ?? "ok",
+    warningCount: raw.warning_count,
+    hash: truncateHash(raw.sha256),
+  };
+}
+
+const RUN_AUDIT_META: Record<string, { kind: AuditEvent["kind"]; icon: string }> = {
+  RUN_CREATED: { kind: "default", icon: "Plus" },
+  RUN_UPLOADED: { kind: "default", icon: "Upload" },
+  RUN_VALIDATED: { kind: "ok", icon: "CheckCircle" },
+  RUN_EXECUTED: { kind: "accent", icon: "Play" },
+  RUN_COMPLETED: { kind: "ok", icon: "CheckCircle2" },
+  RUN_FAILED: { kind: "err", icon: "XCircle" },
+  RUN_DELETED: { kind: "err", icon: "Trash2" },
+};
+
+function mapAuditEvent(raw: AuditEventRaw, idx: number): AuditEvent {
+  const meta = RUN_AUDIT_META[raw.event_type] ?? { kind: "default" as const, icon: "Activity" };
+  const details = raw.details ?? {};
+  const description =
+    typeof details.description === "string"
+      ? details.description
+      : Object.entries(details)
+          .filter(([k]) => k !== "description")
+          .map(([, v]) => String(v))
+          .join(" · ") || raw.event_type.replace(/_/g, " ").toLowerCase();
+
+  const dt = new Date(raw.created_at);
+  const time = dt.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return {
+    id: raw.id ?? String(idx),
+    kind: meta.kind,
+    iconName: meta.icon,
+    title: raw.event_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    description,
+    who: raw.user_name ?? "system",
+    time,
+  };
+}
+
+export function mapRunDetail(raw: RunDetailRaw): RunDetail {
+  const listItem = mapRunListItem(raw);
+
+  const kpis: KpiData[] = (raw.kpis ?? []).map((k) => ({
+    id: k.id,
+    label: k.label,
+    helpText: k.help_text,
+    currencyPrefix: k.currency_prefix,
+    value: k.value,
+    delta: k.delta,
+    deltaDir: k.delta_dir,
+    subNote: k.sub_note,
+  }));
+
+  const segments: SegmentBar[] = (raw.segments ?? []).map((s) => ({
+    name: s.name,
+    value: s.value,
+  }));
+
+  const inputFiles: RunInputFile[] = (raw.input_files ?? []).map(mapInputFile);
+  const auditEvents: AuditEvent[] = (raw.audit_events ?? []).map(mapAuditEvent);
+
+  const engineInfo: EngineInfo = {
+    version: raw.engine_info?.version ?? "—",
+    releasedDate: raw.engine_info?.released_date ?? "—",
+    pdMethod: raw.engine_info?.pd_method ?? "—",
+    lgdMethod: raw.engine_info?.lgd_method ?? "—",
+    eadMethod: raw.engine_info?.ead_method ?? "—",
+    pdFilesCombined: raw.engine_info?.pd_files_combined ?? false,
+    deterministic: raw.engine_info?.deterministic ?? true,
+  };
+
+  const failureDetails =
+    raw.failure_stage && raw.failure_message
+      ? {
+          stage: raw.failure_stage,
+          message: raw.failure_message,
+          ref: raw.failure_ref ?? "—",
+        }
+      : undefined;
+
+  return {
+    ...listItem,
+    kpis,
+    segments,
+    inputFiles,
+    auditEvents,
+    engineInfo,
+    failureDetails,
+    deletedBy: raw.deleted_by ?? undefined,
+    deletedAt: raw.deleted_at ? formatRunDate(raw.deleted_at) : undefined,
+    acceptedWarnings: raw.accepted_warnings,
+  };
+}
+
+export function mapEngineProgress(raw: EngineProgressRaw | null | undefined): ComputeStage[] {
+  if (!raw) {
+    return [
+      { id: "pd", title: "PD engine", description: "Transition matrices · 299 monthly powers", status: "pending", durationMs: 1600 },
+      { id: "lgd", title: "LGD engine", description: "Discounting collateral · cure rates", status: "pending", durationMs: 2000 },
+      { id: "ead", title: "EAD engine", description: "Forward rundown · expected balances", status: "pending", durationMs: 1600 },
+      { id: "ecl", title: "ECL assembly", description: "PD × LGD × EAD · discounting to today", status: "pending", durationMs: 1200 },
+    ];
+  }
+
+  const backendToFrontend: Record<string, "pending" | "active" | "done" | "error"> = {
+    pending: "pending",
+    running: "active",
+    complete: "done",
+    failed: "error",
+  };
+
+  const stages = [
+    { key: "pd" as const, id: "pd", title: "PD engine", description: "Transition matrices · 299 monthly powers", durationMs: 1600 },
+    { key: "lgd" as const, id: "lgd", title: "LGD engine", description: "Discounting collateral · cure rates", durationMs: 2000 },
+    { key: "ead" as const, id: "ead", title: "EAD engine", description: "Forward rundown · expected balances", durationMs: 1600 },
+    { key: "ecl" as const, id: "ecl", title: "ECL assembly", description: "PD × LGD × EAD · discounting to today", durationMs: 1200 },
+  ];
+
+  return stages.map(({ key, id, title, description, durationMs }) => {
+    const stageRaw = raw[key];
+    const status = backendToFrontend[stageRaw.status] ?? "pending";
+
+    let elapsed: string | undefined;
+    if (status === "active" && stageRaw.started_at) {
+      const ms = Date.now() - new Date(stageRaw.started_at).getTime();
+      elapsed = `${(ms / 1000).toFixed(1)}s`;
+    } else if (status === "done" && stageRaw.elapsed_ms != null) {
+      elapsed = `${(stageRaw.elapsed_ms / 1000).toFixed(1)}s`;
+    }
+
+    return { id, title, description, status, elapsed, durationMs };
+  });
+}
+
+export function mapValidationResult(
+  raw: ValidationResultRaw,
+  uploadedFiles: Array<{ id: string; name: string; type: "PD" | "LGD" | "EAD"; size: string; sheets: number; hash: string; status: import("@/lib/new-run-types").FileStatus }>,
+): import("@/lib/new-run-types").ValidationResult {
+  const fileResults = uploadedFiles.map((f) => {
+    const fileIssues = raw.issues
+      .filter((issue) => !issue.kind || issue.kind === f.type)
+      .map((issue: ValidationIssueRaw) => ({
+        id: issue.id,
+        level: issue.level === "block" ? ("block" as const) : ("warn" as const),
+        title: issue.title,
+        location: issue.location ?? "—",
+        fix: issue.fix ?? "",
+      }));
+    return {
+      file: f,
+      issues: fileIssues,
+    };
+  });
+
+  const summary =
+    raw.status === "ok"
+      ? "All checks passed"
+      : raw.status === "blocking"
+        ? "Validation errors found"
+        : "Validation warnings found";
+
+  const subSummary = raw.summary ?? "";
+
+  return {
+    status: raw.status,
+    summary,
+    subSummary,
+    fileResults,
+    detectedSegments: raw.detected_segments ?? [],
+  };
+}
+
+// ── Results mappers ───────────────────────────────────────────────────────
+
+export function mapSegmentData(raw: SegmentDataRaw): SegmentData {
+  const s1 = raw.stage1_pct ?? 0;
+  const s2 = raw.stage2_pct ?? 0;
+  const s3 = raw.stage3_pct ?? 0;
+  return {
+    name: raw.name,
+    mix: [s1, s2, s3],
+    ecl: raw.ecl,
+    outstanding: raw.outstanding,
+    coverage: typeof raw.coverage === "number"
+      ? `${Number(raw.coverage).toFixed(2)}%`
+      : String(raw.coverage),
+    loans: raw.loans,
+    delta: raw.delta ?? 0,
+  };
+}
+
+export function mapPortfolio(raw: PortfolioRaw): {
+  segments: SegmentData[];
+  context: Partial<RunContext>;
+} {
+  return {
+    segments: (raw.segments ?? []).map(mapSegmentData),
+    context: {
+      runId: raw.run_id,
+      period: raw.period,
+      computedAt: raw.computed_at,
+      engineVersion: raw.engine_version,
+      currency: raw.currency,
+    },
+  };
+}
+
+export function mapLoanRow(raw: LoanRowRaw): LoanRow {
+  return {
+    id: raw.id,
+    customer: raw.customer,
+    stage: raw.stage as 1 | 2 | 3,
+    pd: raw.pd,
+    lgd: raw.lgd,
+    ead: raw.ead,
+    ecl: raw.ecl,
+  };
+}
+
+export function mapMonthlyRundown(raw: MonthlyRundownRaw): MonthlyRundown {
+  return {
+    month: raw.month,
+    marginalPd: raw.marginal_pd ?? 0,
+    cumulativePd: raw.cumulative_pd ?? 0,
+    ead: raw.ead,
+    ecl: raw.ecl,
+  };
+}
+
+export function mapLoanDetail(raw: LoanDetailRaw): LoanDetail {
+  return {
+    ...mapLoanRow(raw),
+    segment: raw.segment,
+    outstanding: raw.outstanding,
+    collateralValue: raw.collateral_value ?? 0,
+    maturity: raw.maturity ?? "—",
+    rundown: (raw.rundown ?? []).map(mapMonthlyRundown),
+  };
+}
+
+export function mapPdMatrix(
+  raw: [[number, number, number], [number, number, number], [number, number, number]] | undefined,
+): PDMatrix {
+  if (!raw) return [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  return raw;
 }

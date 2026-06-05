@@ -4,6 +4,25 @@ import { authConfig } from "./auth.config";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
+function buildUserFromAuthData(data: {
+  access_token: string;
+  user: Record<string, unknown>;
+}) {
+  const { access_token, user } = data;
+  return {
+    id: user.id as string,
+    email: user.email as string,
+    name: user.name as string,
+    accessToken: access_token,
+    tenantId: user.tenant_id as string,
+    tenantName: user.tenant_name as string,
+    role: user.role as string,
+    isEmailVerified: user.is_email_verified as boolean,
+    isOnboardingComplete: user.is_onboarding_complete as boolean,
+    isPlatformAdmin: (user.is_platform_admin as boolean) ?? false,
+  };
+}
+
 export const { auth, signIn, signOut, handlers } = NextAuth({
   ...authConfig,
   session: { strategy: "jwt" },
@@ -31,20 +50,38 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           if (!res.ok) return null;
 
           const body = await res.json();
-          const { access_token, user } = body.data;
 
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            accessToken: access_token,
-            tenantId: user.tenant_id,
-            tenantName: user.tenant_name,
-            role: user.role,
-            isEmailVerified: user.is_email_verified,
-            isOnboardingComplete: user.is_onboarding_complete,
-            isPlatformAdmin: user.is_platform_admin ?? false,
-          };
+          if (body.data?.mfa_required) {
+            throw new Error(`MFA_REQUIRED:${body.data.challenge_token ?? ""}`);
+          }
+
+          return buildUserFromAuthData(body.data);
+        } catch (e) {
+          if (e instanceof Error && e.message.startsWith("MFA_REQUIRED:")) throw e;
+          return null;
+        }
+      },
+    }),
+    Credentials({
+      id: "mfa-credentials",
+      credentials: {
+        challengeToken: { label: "Challenge Token", type: "text" },
+        code: { label: "MFA Code", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.challengeToken || !credentials?.code) return null;
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/v1/auth/mfa/verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              challenge_token: credentials.challengeToken,
+              code: credentials.code,
+            }),
+          });
+          if (!res.ok) return null;
+          const body = await res.json();
+          return buildUserFromAuthData(body.data);
         } catch {
           return null;
         }

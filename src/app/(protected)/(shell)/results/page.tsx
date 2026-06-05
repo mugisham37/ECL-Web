@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: "Results — ECL Platform",
 };
 
-export default function ResultsPage() {
-  return <ResultsExplorer />;
+interface ResultsPageProps {
+  searchParams: Promise<{ run_id?: string }>;
+}
+
+export default async function ResultsPage({ searchParams }: ResultsPageProps) {
+  const { run_id: runId } = await searchParams;
+  return <ResultsExplorer initialRunId={runId} />;
 }

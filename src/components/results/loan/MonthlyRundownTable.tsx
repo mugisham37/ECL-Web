@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { fmtKes } from "@/lib/results-mock";
+
 import type { MonthlyRundown } from "@/lib/results-types";
+
+function fmtKes(n: number): string { return Math.abs(n).toLocaleString("en-US"); }
 
 interface MonthlyRundownTableProps {
   rundown: MonthlyRundown[];

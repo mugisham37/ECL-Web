@@ -4,73 +4,74 @@ import { useEffect, useRef } from "react";
 import { ComputeRing } from "../ComputeRing";
 import { ComputeStageTracker } from "../ComputeStageTracker";
 import { useRunWizard } from "../RunWizardContext";
-import { DEFAULT_COMPUTE_STAGES } from "@/lib/new-run-types";
-import type { ComputeStage } from "@/lib/new-run-types";
+import { useApiSession } from "@/hooks/use-api-session";
+import { executeRun, fetchRun } from "@/lib/api/runs";
+import { mapEngineProgress, mapRunListItem } from "@/lib/api/mappers";
+
+const POLL_INTERVAL_MS = 2_000;
 
 export function ComputeStep() {
   const { state, dispatch } = useRunWizard();
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const { token, tenantId } = useApiSession();
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    // Reset stages
-    const stages: ComputeStage[] = DEFAULT_COMPUTE_STAGES.map((s) => ({ ...s, status: "pending" }));
-    stages[0] = { ...stages[0], status: "active" };
-    dispatch({ type: "SET_COMPUTE_STAGES", stages: [...stages] });
+    if (startedRef.current || !state.runId || !token || !tenantId) return;
+    startedRef.current = true;
+
     dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 0 });
 
-    const total = DEFAULT_COMPUTE_STAGES.reduce((acc, s) => acc + s.durationMs, 0);
-    let elapsed = 0;
+    // Kick off the engine
+    executeRun(token, tenantId, state.runId).catch(() => {});
 
-    // Tick progress every 100ms
-    const tick = setInterval(() => {
-      elapsed += 100;
-      const pct = Math.min(99, Math.round((elapsed / total) * 100));
-      dispatch({ type: "SET_COMPUTE_PROGRESS", pct });
-    }, 100);
+    // Poll for status
+    pollRef.current = setInterval(async () => {
+      if (!state.runId || !token || !tenantId) return;
+      try {
+        const raw = await fetchRun(token, tenantId, state.runId);
 
-    // Sequence stages
-    let stageElapsed = 0;
-    DEFAULT_COMPUTE_STAGES.forEach((s, idx) => {
-      const t = setTimeout(() => {
-        const updated: ComputeStage[] = DEFAULT_COMPUTE_STAGES.map((ss, i) => ({
-          ...ss,
-          status:
-            i < idx + 1 ? "done" :
-            i === idx + 1 ? "active" :
-            "pending",
-          elapsed: i < idx + 1 ? `${(ss.durationMs / 1000).toFixed(1)}s` : undefined,
-        }));
-        dispatch({ type: "SET_COMPUTE_STAGES", stages: updated });
-      }, stageElapsed + s.durationMs);
-      timersRef.current.push(t);
-      stageElapsed += s.durationMs;
-    });
+        const stages = mapEngineProgress(raw.engine_progress ?? null);
+        dispatch({ type: "SET_COMPUTE_STAGES", stages });
 
-    // Finish
-    const finishTimer = setTimeout(() => {
-      clearInterval(tick);
-      dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 100 });
-      const done: ComputeStage[] = DEFAULT_COMPUTE_STAGES.map((s) => ({
-        ...s, status: "done",
-        elapsed: `${(s.durationMs / 1000).toFixed(1)}s`,
-      }));
-      dispatch({ type: "SET_COMPUTE_STAGES", stages: done });
+        const doneCount = stages.filter((s) => s.status === "done").length;
+        const pct = Math.min(99, Math.round((doneCount / stages.length) * 100));
+        dispatch({ type: "SET_COMPUTE_PROGRESS", pct });
 
-      setTimeout(() => {
-        dispatch({
-          type: "SET_RESULT",
-          result: { id: "c81a…77fe", fullId: "c81a4f9d-2c1b-4e77-9a3f-771afe2c77fe", totalEcl: 1284500, coverageRatio: "2.41%", currency: "KES" },
-        });
-        dispatch({ type: "GO_TO_STEP", step: "success" });
-      }, 500);
-    }, total);
-
-    timersRef.current.push(finishTimer);
+        if (raw.status === "complete") {
+          clearInterval(pollRef.current!);
+          dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 100 });
+          const item = mapRunListItem(raw);
+          dispatch({
+            type: "SET_RESULT",
+            result: {
+              id: item.id,
+              fullId: item.fullId,
+              totalEcl: item.eclAmount ?? 0,
+              coverageRatio: item.coverage ?? "—",
+              currency: item.currency,
+            },
+          });
+          setTimeout(() => dispatch({ type: "GO_TO_STEP", step: "success" }), 500);
+        } else if (raw.status === "failed") {
+          clearInterval(pollRef.current!);
+          dispatch({
+            type: "SET_FAILURE",
+            details: {
+              stage: raw.failure_stage ?? "unknown",
+              message: raw.failure_message ?? "An unexpected error occurred.",
+              ref: raw.failure_ref ?? "—",
+            },
+          });
+          setTimeout(() => dispatch({ type: "GO_TO_STEP", step: "failure" }), 300);
+        }
+      } catch {
+        // transient — keep polling
+      }
+    }, POLL_INTERVAL_MS);
 
     return () => {
-      clearInterval(tick);
-      timersRef.current.forEach(clearTimeout);
-      timersRef.current = [];
+      if (pollRef.current) clearInterval(pollRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

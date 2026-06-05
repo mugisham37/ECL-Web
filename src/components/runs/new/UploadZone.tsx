@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Upload, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { UploadFilePill } from "./shared/UploadFilePill";
@@ -15,24 +15,55 @@ const ZONE_META: Record<FileInputType, { title: string; sub: string; multi: bool
 interface UploadZoneProps {
   type: FileInputType;
   files: UploadedFile[];
-  onAdd: (file: UploadedFile) => void;
+  onAdd: (file: File) => void;
   onRemove: (id: string) => void;
+  onDownloadTemplate?: () => void;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove }: UploadZoneProps) {
+export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const meta = ZONE_META[type];
   const showDropzone = meta.multi || files.length === 0;
 
-  function handleClick() {
-    // Simulate adding a file (in production this opens a file picker)
-    if (type === "PD" && files.length === 1 && !files.find((f) => f.name === "PD_branch4.xlsx")) {
-      onAdd({ id: `pd-extra-${Date.now()}`, name: "PD_branch4.xlsx", size: "1.1 MB", sheets: 1, type: "PD", status: "warn", hash: "7d10…b8e4" });
+  function openPicker() {
+    inputRef.current?.click();
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    picked.forEach(onAdd);
+    // Reset so the same file can be re-selected after removal
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const dropped = Array.from(e.dataTransfer.files).filter((f) =>
+      f.name.endsWith(".xlsx") || f.name.endsWith(".xls"),
+    );
+    if (meta.multi) {
+      dropped.forEach(onAdd);
+    } else if (dropped.length > 0) {
+      onAdd(dropped[0]);
     }
   }
 
   return (
     <div className="upload-zone">
+      {/* Hidden file input */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        multiple={meta.multi}
+        style={{ display: "none" }}
+        onChange={handleFileInput}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
       {/* Zone header */}
       <div className="uz-head">
         <span className="uz-badge" aria-label={`${type} input type`}>{type}</span>
@@ -55,14 +86,17 @@ export function UploadZone({ type, files, onAdd, onRemove }: UploadZoneProps) {
           <div className="uz-d">{meta.sub}</div>
         </div>
         <button
+          type="button"
+          onClick={onDownloadTemplate}
+          disabled={!onDownloadTemplate}
           style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             height: 28, padding: "0 10px", marginLeft: "auto",
             background: "none", border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
-            fontSize: "var(--fs-caption)", color: "var(--text-muted)", cursor: "pointer",
-            transition: "background var(--t-micro)",
+            fontSize: "var(--fs-caption)", color: "var(--text-muted)", cursor: onDownloadTemplate ? "pointer" : "default",
+            transition: "background var(--t-micro)", opacity: onDownloadTemplate ? 1 : 0.5,
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "var(--surface-sunken)")}
+          onMouseEnter={(e) => onDownloadTemplate && ((e.currentTarget as HTMLButtonElement).style.background = "var(--surface-sunken)")}
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "none")}
         >
           <Download size={12} />
@@ -77,11 +111,11 @@ export function UploadZone({ type, files, onAdd, onRemove }: UploadZoneProps) {
             className={`dz${isDragOver ? " over" : ""}`}
             role="button"
             tabIndex={0}
-            onClick={handleClick}
+            onClick={openPicker}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setIsDragOver(false); handleClick(); }}
-            onKeyDown={(e) => e.key === "Enter" && handleClick()}
+            onDrop={handleDrop}
+            onKeyDown={(e) => e.key === "Enter" && openPicker()}
             aria-label={`Upload ${type} file${meta.multi ? "s" : ""}`}
           >
             <Upload size={26} className="dz-ic" aria-hidden="true" />

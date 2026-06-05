@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { RunWizardProvider, useRunWizard, canContinueFrom, isUploadReady } from "./RunWizardContext";
@@ -15,6 +16,8 @@ import { SuccessTerminal } from "./steps/SuccessTerminal";
 import { FailureTerminal } from "./steps/FailureTerminal";
 import { stepIndex } from "@/lib/new-run-types";
 import type { NewRunStep } from "@/lib/new-run-types";
+import { useApiSession } from "@/hooks/use-api-session";
+import { createRun, deleteRun } from "@/lib/api/runs";
 
 // ── Step component map ─────────────────────────────────────────────────────
 
@@ -40,8 +43,18 @@ const slideVariants = {
 function WizardInner() {
   const { state, dispatch } = useRunWizard();
   const router = useRouter();
+  const { token, tenantId, isAuthenticated } = useApiSession();
 
   const { step, prevStep, cancelModalOpen, runName } = state;
+
+  // Create a draft run on mount so uploads have a run ID to attach to
+  useEffect(() => {
+    if (!isAuthenticated || !token || !tenantId) return;
+    createRun(token, tenantId, { name: runName })
+      .then((raw) => dispatch({ type: "SET_RUN_ID", runId: raw.id }))
+      .catch(() => { /* best-effort; upload step will show an error if runId is null */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const isTerminal = step === "success" || step === "failure";
   const isCompute  = step === "compute";
@@ -71,6 +84,10 @@ function WizardInner() {
 
   function handleDiscard() {
     dispatch({ type: "CLOSE_CANCEL_MODAL" });
+    // Delete the draft run in the background — fire and forget
+    if (state.runId && token && tenantId) {
+      deleteRun(token, tenantId, state.runId).catch(() => {});
+    }
     router.push("/runs");
   }
 

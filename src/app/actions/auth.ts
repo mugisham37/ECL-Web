@@ -14,7 +14,7 @@ import { AuthError } from "next-auth";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export type AuthFormState =
-  | { error?: string; success?: boolean; email?: string }
+  | { error?: string; success?: boolean; email?: string; challengeToken?: string }
   | undefined;
 
 // Helper: parse checkbox value from FormData (value is "on" or null)
@@ -46,14 +46,40 @@ export async function loginAction(
     });
   } catch (e) {
     if (e instanceof AuthError) {
-      switch (e.type) {
-        case "CredentialsSignin":
-          return { error: "Email or password incorrect." };
-        case "CallbackRouteError":
-          return { error: "Sign-in failed. Please try again." };
-        default:
-          return { error: "Something went wrong. Please try again." };
+      if (e.type === "CallbackRouteError") {
+        const cause = (e as unknown as { cause?: { err?: Error } }).cause?.err;
+        const msg = cause?.message ?? "";
+        if (msg.startsWith("MFA_REQUIRED:")) {
+          return { error: "MFA_REQUIRED", challengeToken: msg.slice("MFA_REQUIRED:".length) };
+        }
+        return { error: "Sign-in failed. Please try again." };
       }
+      if (e.type === "CredentialsSignin") {
+        return { error: "Email or password incorrect." };
+      }
+      return { error: "Something went wrong. Please try again." };
+    }
+    throw e;
+  }
+}
+
+export async function mfaAction(
+  _state: AuthFormState,
+  formData: FormData
+): Promise<AuthFormState> {
+  const challengeToken = formData.get("challengeToken") as string | null;
+  const code = formData.get("code") as string | null;
+  if (!challengeToken || !code) return { error: "Invalid request." };
+
+  try {
+    await signIn("mfa-credentials", {
+      challengeToken,
+      code,
+      redirectTo: "/dashboard",
+    });
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return { error: "Invalid or expired code. Try again." };
     }
     throw e;
   }
@@ -121,9 +147,13 @@ export async function forgotAction(
     return { error: "Please enter a valid email address." };
   }
 
-  // TODO: call backend API to send reset email
-  // await sendPasswordResetEmail(validated.data.email)
+  await fetch(`${BACKEND_URL}/api/v1/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: validated.data.email }),
+  }).catch(() => {});
 
+  // Always succeed — do not reveal email existence
   return { success: true, email: validated.data.email };
 }
 
@@ -142,9 +172,20 @@ export async function resetAction(
     return { error: validated.error.issues[0]?.message ?? "Please check your inputs." };
   }
 
-  // TODO: call backend API to verify token + update password
-  // const result = await resetPassword(validated.data.token, validated.data.password)
-  // if (!result.ok) return { error: 'This link has expired.' }
+  const res = await fetch(`${BACKEND_URL}/api/v1/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: validated.data.token, password: validated.data.password }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const code = (err as Record<string, string>).code ?? "";
+    if (code === "TOKEN_EXPIRED" || code === "TOKEN_INVALID") {
+      return { error: "This link has expired. Request a new one." };
+    }
+    return { error: "Password reset failed. Please try again." };
+  }
 
   return { success: true };
 }
@@ -166,8 +207,29 @@ export async function inviteAction(
     return { error: validated.error.issues[0]?.message ?? "Please check your inputs." };
   }
 
-  // TODO: call backend API to activate invite + sign in
-  // await activateInvite(validated.data)
+  // Validate the invite token first
+  const validateRes = await fetch(
+    `${BACKEND_URL}/api/v1/invites/validate/${encodeURIComponent(validated.data.token)}`,
+  );
+  if (!validateRes.ok) {
+    return { error: "Invalid or expired invite link." };
+  }
 
-  redirect("/dashboard");
+  // Accept the invite (creates account)
+  const acceptRes = await fetch(`${BACKEND_URL}/api/v1/invites/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: validated.data.token,
+      name: validated.data.name,
+      password: validated.data.password,
+    }),
+  });
+
+  if (!acceptRes.ok) {
+    const err = await acceptRes.json().catch(() => ({}));
+    return { error: (err as Record<string, string>).detail ?? "Failed to activate your account. Please try again." };
+  }
+
+  redirect("/sign-in?activated=1");
 }

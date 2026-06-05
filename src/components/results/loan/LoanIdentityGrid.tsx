@@ -1,5 +1,6 @@
-import { fmtKes } from "@/lib/results-mock";
 import type { LoanDetail } from "@/lib/results-types";
+
+function fmtKes(n: number): string { return Math.abs(n).toLocaleString("en-US"); }
 
 interface LoanIdentityGridProps {
   loan: LoanDetail;

@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { StageBadge } from "../shared/StageBadge";
 import { ResultsEmptyState } from "../shared/ResultsEmptyState";
-import { fmtKes } from "@/lib/results-mock";
+
 import type { LoanRow, ExplorerFilter } from "@/lib/results-types";
+
+function fmtKes(n: number): string { return Math.abs(n).toLocaleString("en-US"); }
 
 interface SegmentLoansTableProps {
   loans: LoanRow[];

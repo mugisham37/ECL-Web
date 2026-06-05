@@ -4,7 +4,11 @@ import { Plus, Sparkles, Info } from "lucide-react";
 import { CollateralRow } from "../collateral/CollateralRow";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import type { CollateralType, ModalKind } from "@/lib/admin-types";
-import { COMMON_COLLATERAL } from "@/lib/admin-mock";
+const COMMON_COLLATERAL: Array<[string, number, number]> = [
+  ["Cash deposit", 0, 0], ["Government securities", 5, 1], ["Listed equities", 25, 1],
+  ["Residential property", 30, 12], ["Commercial property", 40, 18], ["Motor vehicle", 50, 6],
+  ["Plant & machinery", 60, 12], ["Personal guarantee", 80, 24],
+];
 
 interface CollateralSectionProps {
   collateral: CollateralType[];

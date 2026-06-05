@@ -6,62 +6,43 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ValidationSummary } from "../ValidationSummary";
 import { ValidationFileItem } from "../ValidationFileItem";
 import { useRunWizard } from "../RunWizardContext";
-import type { ValidationResult } from "@/lib/new-run-types";
-
-// ── Simulate validation ────────────────────────────────────────────────────
-
-function buildValidationResult(state: ReturnType<typeof useRunWizard>["state"]): ValidationResult {
-  const allFiles = [
-    ...state.pdFiles.map((f) => ({ zone: "PD", file: f })),
-    ...(state.lgdFile ? [{ zone: "LGD", file: state.lgdFile }] : []),
-    ...(state.eadFile ? [{ zone: "EAD", file: state.eadFile }] : []),
-  ];
-
-  const fileResults = allFiles.map(({ file }) => {
-    if (file.name === "PD_branch4.xlsx") {
-      return {
-        file,
-        issues: [
-          { level: "warn" as const, title: 'Unknown segment "Microfinance"', location: "Sheet 1 · column F · 14 rows", fix: 'Rows will be grouped under "Unsegmented" unless you add the segment in Admin.' },
-          { level: "warn" as const, title: "Blank maturity date", location: "Sheet 1 · column M · 3 rows", fix: "These loans default to the portfolio average maturity." },
-          { level: "warn" as const, title: "Negative outstanding balance", location: "Sheet 1 · column J · 1 row", fix: "Treated as zero exposure." },
-        ],
-      };
-    }
-    return { file, issues: [] };
-  });
-
-  const hasWarn = fileResults.some((r) => r.issues.length > 0);
-  const warnCount = fileResults.filter((r) => r.issues.length > 0).length;
-  const okCount = fileResults.length - warnCount;
-
-  if (hasWarn) {
-    return {
-      status: "warn",
-      summary: `${okCount} file${okCount !== 1 ? "s" : ""} valid · 1 file with 3 warnings`,
-      subSummary: "Warnings won't block the run. Review them below.",
-      fileResults,
-    };
-  }
-  return {
-    status: "ok",
-    summary: `All ${fileResults.length} files valid`,
-    subSummary: "No issues found. Ready to compute.",
-    fileResults,
-  };
-}
+import { useApiSession } from "@/hooks/use-api-session";
+import { validateRun } from "@/lib/api/runs";
+import { mapValidationResult } from "@/lib/api/mappers";
 
 export function ValidateStep() {
   const { state, dispatch } = useRunWizard();
+  const { token, tenantId } = useApiSession();
 
   useEffect(() => {
-    if (!state.isValidating && !state.validationResult) {
-      dispatch({ type: "START_VALIDATING" });
-      const t = setTimeout(() => {
-        dispatch({ type: "SET_VALIDATION_RESULT", result: buildValidationResult(state) });
-      }, 1400);
-      return () => clearTimeout(t);
-    }
+    if (state.isValidating || state.validationResult || !state.runId || !token || !tenantId) return;
+
+    dispatch({ type: "START_VALIDATING" });
+
+    const uploadedFiles = [
+      ...state.pdFiles,
+      ...(state.lgdFile ? [state.lgdFile] : []),
+      ...(state.eadFile ? [state.eadFile] : []),
+    ];
+
+    validateRun(token, tenantId, state.runId, {
+      accepted_warning_ids: state.acceptedWarningIds,
+    })
+      .then((raw) => {
+        const result = mapValidationResult(raw, uploadedFiles);
+        dispatch({ type: "SET_VALIDATION_RESULT", result });
+      })
+      .catch(() => {
+        dispatch({
+          type: "SET_VALIDATION_RESULT",
+          result: {
+            status: "blocking",
+            summary: "Validation failed",
+            subSummary: "Could not connect to the server. Check your connection and try again.",
+            fileResults: [],
+          },
+        });
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,7 +84,7 @@ export function ValidateStep() {
           >
             <ValidationSummary result={state.validationResult} />
 
-            {state.validationResult.fileResults.map((result, i) => (
+            {state.validationResult.fileResults.map((result) => (
               <ValidationFileItem
                 key={result.file.id}
                 result={result}

@@ -3,9 +3,9 @@
 import { createContext, useContext, useReducer, type Dispatch } from "react";
 import {
   DEFAULT_COMPUTE_STAGES,
-  SEED_FILES,
   type NewRunState,
   type NewRunAction,
+  type UploadedFile,
 } from "@/lib/new-run-types";
 
 // ── Default state ──────────────────────────────────────────────────────────
@@ -14,9 +14,10 @@ const initialState: NewRunState = {
   step: "upload",
   prevStep: "upload",
   runName: "May 2026",
-  pdFiles: [SEED_FILES.PD],
-  lgdFile: SEED_FILES.LGD,
-  eadFile: SEED_FILES.EAD,
+  runId: null,
+  pdFiles: [],
+  lgdFile: null,
+  eadFile: null,
   combinePdFiles: true,
   validationResult: null,
   isValidating: false,
@@ -25,6 +26,9 @@ const initialState: NewRunState = {
   result: null,
   failureDetails: null,
   cancelModalOpen: false,
+  uploadProgress: {},
+  uploadedFileIds: {},
+  acceptedWarningIds: [],
 };
 
 // ── Reducer ────────────────────────────────────────────────────────────────
@@ -75,6 +79,32 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
 
     case "CLOSE_CANCEL_MODAL":
       return { ...state, cancelModalOpen: false };
+
+    case "SET_RUN_ID":
+      return { ...state, runId: action.runId };
+
+    case "SET_UPLOAD_PROGRESS":
+      return { ...state, uploadProgress: { ...state.uploadProgress, [action.fileId]: action.progress } };
+
+    case "SET_UPLOADED_FILE_ID":
+      return { ...state, uploadedFileIds: { ...state.uploadedFileIds, [action.fileId]: action.serverId } };
+
+    case "UPDATE_FILE_STATUS": {
+      const { id, status, hash, sheets } = action;
+      function patchFile(f: UploadedFile): UploadedFile {
+        if (f.id !== id) return f;
+        return { ...f, status, ...(hash !== undefined ? { hash } : {}), ...(sheets !== undefined ? { sheets } : {}) };
+      }
+      return {
+        ...state,
+        pdFiles: state.pdFiles.map(patchFile),
+        lgdFile: state.lgdFile ? patchFile(state.lgdFile) : null,
+        eadFile: state.eadFile ? patchFile(state.eadFile) : null,
+      };
+    }
+
+    case "SET_ACCEPTED_WARNING_IDS":
+      return { ...state, acceptedWarningIds: action.ids };
 
     default:
       return state;

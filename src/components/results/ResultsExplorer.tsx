@@ -9,14 +9,17 @@ import { PortfolioView } from "./portfolio/PortfolioView";
 import { SegmentView } from "./segment/SegmentView";
 import { LoanView } from "./loan/LoanView";
 import { ResultsEmptyState } from "./shared/ResultsEmptyState";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
+import { useApiSession } from "@/hooks/use-api-session";
+import { fetchPortfolio, fetchSegmentResults, fetchLoanResults } from "@/lib/api/results";
 import {
-  MOCK_RUN_CONTEXT,
-  MOCK_SEGMENTS,
-  getLoanDetail,
-} from "@/lib/results-mock";
+  mapPortfolio,
+  mapLoanDetail,
+  mapLoanRow,
+  mapPdMatrix,
+} from "@/lib/api/mappers";
 import { defaultFilter } from "@/lib/results-types";
-import type { DrillLevel, ExplorerFilter } from "@/lib/results-types";
-import { fmtKes } from "@/lib/results-mock";
+import type { DrillLevel, ExplorerFilter, RunContext } from "@/lib/results-types";
 
 const FADE_VARIANTS = {
   hidden:  { opacity: 0, y: 4  },
@@ -24,21 +27,49 @@ const FADE_VARIANTS = {
   exit:    { opacity: 0, y: -4 },
 };
 
-export function ResultsExplorer() {
+const EMPTY_CONTEXT: RunContext = {
+  runId: "",
+  period: "—",
+  computedAt: "—",
+  engineVersion: "—",
+  currency: "KES",
+};
+
+interface ResultsExplorerProps {
+  initialRunId?: string;
+}
+
+export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
+  const { tenantId } = useApiSession();
   const [level,   setLevel]   = useState<DrillLevel>("portfolio");
-  const [curSeg,  setCurSeg]  = useState("Transport");
-  const [curLoan, setCurLoan] = useState("TRN-04821");
+  const [curSeg,  setCurSeg]  = useState("");
+  const [curLoan, setCurLoan] = useState("");
   const [filter,  setFilter]  = useState<ExplorerFilter>(defaultFilter);
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
-  const [isLoading, setIsLoading] = useState(true);
+  const [runId,   setRunId]   = useState(initialRunId ?? "");
 
-  // Simulate initial data fetch
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
+  // Portfolio query
+  const portfolioQuery = useAuthedQuery(
+    ["portfolio", tenantId, runId, filter.stageFilters.indexOf(false) >= 0 ? filter.stageFilters.join() : "all"],
+    (token, tid) => fetchPortfolio(token, tid, { run_id: runId || undefined }),
+    { staleTime: 60_000 },
+  );
 
-  // Apply data-density attribute so table cells pick up CSS token
+  // Segment query — only enabled when drilling into a segment
+  const segmentQuery = useAuthedQuery(
+    ["segment", tenantId, runId, curSeg],
+    (token, tid) =>
+      fetchSegmentResults(token, tid, curSeg, { run_id: runId || undefined, per_page: 100 }),
+    { enabled: level === "segment" && !!curSeg, staleTime: 60_000 },
+  );
+
+  // Loan query — only enabled when drilling into a loan
+  const loanQuery = useAuthedQuery(
+    ["loan", tenantId, runId, curLoan],
+    (token, tid) => fetchLoanResults(token, tid, curLoan, { run_id: runId || undefined }),
+    { enabled: level === "loan" && !!curLoan, staleTime: 60_000 },
+  );
+
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     wrapRef.current?.setAttribute("data-density", density);
@@ -46,7 +77,6 @@ export function ResultsExplorer() {
 
   function drill(lvl: DrillLevel) {
     setLevel(lvl);
-    // Reset search when drilling back up
     if (lvl === "portfolio" || lvl === "segment") {
       setFilter((f) => ({ ...f, search: "" }));
     }
@@ -69,32 +99,51 @@ export function ResultsExplorer() {
   }
 
   function handleFilterChange(patch: Partial<ExplorerFilter>) {
-    setFilter((prev) => {
-      const next = { ...prev, ...patch };
-      // Auto-switch to empty when all stages deselected or search yields nothing
-      // (SegmentLoansTable handles the visual; here we just track state)
-      return next;
-    });
+    setFilter((prev) => ({ ...prev, ...patch }));
   }
 
-  // Derived: row summary string
+  // Derived data
+  const portfolioResult = portfolioQuery.data ? mapPortfolio(portfolioQuery.data) : null;
+  const portfolioSegments = portfolioResult?.segments ?? [];
+  const partialContext = portfolioResult?.context ?? {};
+
+  const runContext: RunContext = {
+    runId: partialContext.runId ?? runId,
+    period: partialContext.period ?? "—",
+    computedAt: partialContext.computedAt ?? "—",
+    engineVersion: partialContext.engineVersion ?? "—",
+    currency: partialContext.currency ?? "KES",
+  };
+
+  const displayContext = portfolioQuery.data ? runContext : EMPTY_CONTEXT;
+  const currency = displayContext.currency;
+
+  const segmentLoans = segmentQuery.data
+    ? (segmentQuery.data.loans ?? []).map(mapLoanRow)
+    : [];
+
+  const segmentPdMatrix = mapPdMatrix(segmentQuery.data?.pd_matrix);
+
+  const currentSeg = portfolioSegments.find((s) => s.name === curSeg) ?? portfolioSegments[0];
+
+  const currentLoan = loanQuery.data ? mapLoanDetail(loanQuery.data) : null;
+
   const rowSummary = useMemo(() => {
     if (level === "portfolio") {
-      const totalEcl = MOCK_SEGMENTS.reduce((a, s) => a + s.ecl, 0);
-      return `${MOCK_SEGMENTS.length} segments · KES ${fmtKes(totalEcl)}`;
+      const totalEcl = portfolioSegments.reduce((a, s) => a + s.ecl, 0);
+      return `${portfolioSegments.length} segments · ${currency} ${totalEcl >= 1_000_000 ? (totalEcl / 1_000_000).toFixed(1) + "M" : totalEcl.toLocaleString()}`;
     }
-    if (level === "segment") {
-      const seg = MOCK_SEGMENTS.find((s) => s.name === curSeg) ?? MOCK_SEGMENTS[0];
-      return `${seg.loans.toLocaleString()} loans · KES ${fmtKes(seg.ecl)}`;
+    if (level === "segment" && currentSeg) {
+      return `${currentSeg.loans.toLocaleString()} loans · ${currency} ${currentSeg.ecl >= 1_000_000 ? (currentSeg.ecl / 1_000_000).toFixed(1) + "M" : currentSeg.ecl.toLocaleString()}`;
     }
     if (level === "loan") return `Loan ${curLoan}`;
     return "0 results";
-  }, [level, curSeg, curLoan]);
-
-  const currentSeg  = MOCK_SEGMENTS.find((s) => s.name === curSeg) ?? MOCK_SEGMENTS[0];
-  const currentLoan = getLoanDetail(curLoan, curSeg);
+  }, [level, portfolioSegments, currentSeg, curLoan, currency]);
 
   const showToolbar = level !== "loan";
+  const isPortfolioLoading = portfolioQuery.isLoading;
+  const isSegmentLoading = segmentQuery.isLoading;
+  const isLoanLoading = loanQuery.isLoading;
 
   return (
     <div ref={wrapRef} data-density={density}>
@@ -105,7 +154,7 @@ export function ResultsExplorer() {
       >
         {/* Run context header */}
         <ResultsHeader
-          runContext={MOCK_RUN_CONTEXT}
+          runContext={displayContext}
           density={density}
           onDensityToggle={() =>
             setDensity((d) => (d === "compact" ? "comfortable" : "compact"))
@@ -141,14 +190,15 @@ export function ResultsExplorer() {
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
               <PortfolioView
-                segments={MOCK_SEGMENTS}
-                isLoading={isLoading}
+                segments={portfolioSegments}
+                isLoading={isPortfolioLoading}
+                currency={currency}
                 onDrillSegment={drillSegment}
               />
             </motion.div>
           )}
 
-          {level === "segment" && (
+          {level === "segment" && currentSeg && (
             <motion.div
               key="segment"
               variants={FADE_VARIANTS}
@@ -160,7 +210,10 @@ export function ResultsExplorer() {
               <SegmentView
                 segment={currentSeg}
                 filter={filter}
-                isLoading={isLoading}
+                isLoading={isSegmentLoading}
+                loans={segmentLoans}
+                pdMatrix={segmentPdMatrix}
+                currency={currency}
                 onDrillLoan={drillLoan}
                 onClearFilters={clearFilters}
               />
@@ -176,7 +229,14 @@ export function ResultsExplorer() {
               exit="exit"
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              <LoanView loan={currentLoan} isLoading={false} />
+              {currentLoan ? (
+                <LoanView loan={currentLoan} isLoading={isLoanLoading} />
+              ) : (
+                <LoanView loan={{
+                  id: curLoan, customer: "Loading...", stage: 1, pd: 0, lgd: 0, ead: 0, ecl: 0,
+                  segment: curSeg, outstanding: 0, collateralValue: 0, maturity: "—", rundown: [],
+                }} isLoading={true} />
+              )}
             </motion.div>
           )}
 

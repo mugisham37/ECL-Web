@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { fmtKes } from "@/lib/results-mock";
+
 import type { LoanDetail } from "@/lib/results-types";
+
+function fmtKes(n: number): string { return Math.abs(n).toLocaleString("en-US"); }
 
 interface ChainNodeProps {
   label: string;

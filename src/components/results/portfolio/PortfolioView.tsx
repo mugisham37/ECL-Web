@@ -1,23 +1,22 @@
 import { motion } from "framer-motion";
 import { SegmentsTable } from "./SegmentsTable";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
-import { fmtKes, PORTFOLIO_TOTALS } from "@/lib/results-mock";
 import type { SegmentData } from "@/lib/results-types";
 
-const PORTFOLIO_KPIS = [
-  { label: "Total ECL",        cur: "KES", value: fmtKes(PORTFOLIO_TOTALS.ecl) },
-  { label: "Coverage ratio",   cur: "",    value: "2.41%" },
-  { label: "Total outstanding",cur: "KES", value: "57.4M" },
-  { label: "Loans analysed",   cur: "",    value: PORTFOLIO_TOTALS.loans.toLocaleString() },
-];
+function fmtAmount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
 
 interface PortfolioViewProps {
   segments: SegmentData[];
   isLoading: boolean;
+  currency?: string;
   onDrillSegment: (name: string) => void;
 }
 
-export function PortfolioView({ segments, isLoading, onDrillSegment }: PortfolioViewProps) {
+export function PortfolioView({ segments, isLoading, currency = "KES", onDrillSegment }: PortfolioViewProps) {
   if (isLoading) {
     return (
       <div>
@@ -35,11 +34,24 @@ export function PortfolioView({ segments, isLoading, onDrillSegment }: Portfolio
     );
   }
 
+  const totalEcl = segments.reduce((a, s) => a + s.ecl, 0);
+  const totalOutstanding = segments.reduce((a, s) => a + s.outstanding, 0);
+  const totalLoans = segments.reduce((a, s) => a + s.loans, 0);
+  const coverageRatio =
+    totalOutstanding > 0 ? `${((totalEcl / totalOutstanding) * 100).toFixed(2)}%` : "—";
+
+  const portfolioKpis = [
+    { label: "Total ECL", cur: currency, value: fmtAmount(totalEcl) },
+    { label: "Coverage ratio", cur: "", value: coverageRatio },
+    { label: "Total outstanding", cur: currency, value: fmtAmount(totalOutstanding) },
+    { label: "Loans analysed", cur: "", value: totalLoans.toLocaleString() },
+  ];
+
   return (
     <div>
       {/* KPI strip */}
       <div className="rx-kpis">
-        {PORTFOLIO_KPIS.map((kpi, i) => (
+        {portfolioKpis.map((kpi, i) => (
           <motion.div
             key={kpi.label}
             className="kpi"

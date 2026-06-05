@@ -6,8 +6,14 @@ import { RunDetailHeader } from "./RunDetailHeader";
 import { RunDetailKpiStrip } from "./RunDetailKpiStrip";
 import { RunDetailTabs } from "./RunDetailTabs";
 import { RunActionModal } from "./RunActionModal";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
+import { useApiSession } from "@/hooks/use-api-session";
+import { fetchRun } from "@/lib/api/runs";
+import { mapRunDetail } from "@/lib/api/mappers";
 import type { ModalKind } from "./RunActionModal";
 import type { RunDetail } from "@/lib/runs-types";
+
+const LIVE_STATUSES = new Set(["running", "queued", "pd_running", "lgd_running", "ead_running"]);
 
 interface RunDetailViewProps {
   run: RunDetail;
@@ -15,6 +21,22 @@ interface RunDetailViewProps {
 
 export function RunDetailView({ run }: RunDetailViewProps) {
   const [modalKind, setModalKind] = useState<ModalKind>(null);
+  const { tenantId } = useApiSession();
+
+  const liveQuery = useAuthedQuery(
+    ["run-detail", tenantId, run.fullId],
+    (token, tid) => fetchRun(token, tid, run.fullId).then(mapRunDetail),
+    {
+      enabled: LIVE_STATUSES.has(run.status),
+      staleTime: 0,
+      refetchInterval: (query) => {
+        const s = query.state.data?.status ?? run.status;
+        return LIVE_STATUSES.has(s) ? 3_000 : false;
+      },
+    },
+  );
+
+  const displayRun = liveQuery.data ?? run;
 
   function openModal(kind: NonNullable<ModalKind>) {
     setModalKind(kind);
@@ -32,14 +54,14 @@ export function RunDetailView({ run }: RunDetailViewProps) {
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
     >
       {/* Header (back btn, banner, title, meta, actions) */}
-      <RunDetailHeader run={run} onOpenModal={openModal} />
+      <RunDetailHeader run={displayRun} onOpenModal={openModal} />
 
       {/* KPI strip */}
-      <RunDetailKpiStrip run={run} />
+      <RunDetailKpiStrip run={displayRun} />
 
       {/* Tabs */}
       <RunDetailTabs
-        run={run}
+        run={displayRun}
         onRerun={() => openModal("rerun")}
       />
 

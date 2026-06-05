@@ -3,13 +3,23 @@ import { PdTransitionMatrix } from "./PdTransitionMatrix";
 import { StageDistribution } from "./StageDistribution";
 import { SegmentLoansTable } from "./SegmentLoansTable";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
-import { fmtKes, MOCK_MATRIX, getLoansForSegment } from "@/lib/results-mock";
-import type { SegmentData, ExplorerFilter } from "@/lib/results-types";
+import type { SegmentData, ExplorerFilter, LoanRow, PDMatrix } from "@/lib/results-types";
+
+const EMPTY_MATRIX: PDMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+
+function fmtAmount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
 
 interface SegmentViewProps {
   segment: SegmentData;
   filter: ExplorerFilter;
   isLoading: boolean;
+  loans?: LoanRow[];
+  pdMatrix?: PDMatrix;
+  currency?: string;
   onDrillLoan: (id: string) => void;
   onClearFilters: () => void;
 }
@@ -18,6 +28,9 @@ export function SegmentView({
   segment,
   filter,
   isLoading,
+  loans = [],
+  pdMatrix = EMPTY_MATRIX,
+  currency = "KES",
   onDrillLoan,
   onClearFilters,
 }: SegmentViewProps) {
@@ -42,11 +55,10 @@ export function SegmentView({
     );
   }
 
-  const loans = getLoansForSegment(segment.name);
   const KPIS = [
-    { label: "Segment ECL",  cur: "KES", value: fmtKes(segment.ecl) },
-    { label: "Coverage",     cur: "",    value: segment.coverage },
-    { label: "Loans",        cur: "",    value: segment.loans.toLocaleString() },
+    { label: "Segment ECL", cur: currency, value: fmtAmount(segment.ecl) },
+    { label: "Coverage", cur: "", value: segment.coverage },
+    { label: "Loans", cur: "", value: segment.loans.toLocaleString() },
   ];
 
   return (
@@ -94,7 +106,7 @@ export function SegmentView({
             </span>
           </div>
           <div className="rx-panel-body">
-            <PdTransitionMatrix matrix={MOCK_MATRIX} />
+            <PdTransitionMatrix matrix={pdMatrix} />
           </div>
         </motion.div>
 

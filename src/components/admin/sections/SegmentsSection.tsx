@@ -5,7 +5,7 @@ import { Plus, Sparkles, Info, AlertTriangle, Ban } from "lucide-react";
 import { SegmentRow } from "../segments/SegmentRow";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import type { AdminSegment, ModalKind } from "@/lib/admin-types";
-import { COMMON_SEGMENTS } from "@/lib/admin-mock";
+const COMMON_SEGMENTS = ["Transport", "Education", "Agriculture", "Trade", "Manufacturing", "Real Estate", "Personal", "SME"];
 
 interface SegmentsSectionProps {
   segments: AdminSegment[];

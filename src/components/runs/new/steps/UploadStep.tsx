@@ -2,10 +2,71 @@
 
 import { UploadZone } from "../UploadZone";
 import { useRunWizard } from "../RunWizardContext";
-import type { UploadedFile } from "@/lib/new-run-types";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { useApiSession } from "@/hooks/use-api-session";
+import { downloadTemplate } from "@/lib/api/runs";
+import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  if (bytes >= 1_024) return `${(bytes / 1_024).toFixed(0)} KB`;
+  return `${bytes} B`;
+}
 
 export function UploadStep() {
   const { state, dispatch } = useRunWizard();
+  const { uploadFile } = useFileUpload();
+  const { token, tenantId } = useApiSession();
+
+  async function handleAdd(kind: FileInputType, file: File) {
+    const clientId = `${kind}-${Date.now()}`;
+    const pending: UploadedFile = {
+      id: clientId,
+      name: file.name,
+      size: formatBytes(file.size),
+      sheets: 0,
+      type: kind,
+      status: "scan",
+      hash: "—",
+    };
+
+    if (kind === "PD") {
+      dispatch({ type: "ADD_PD_FILE", file: pending });
+    } else if (kind === "LGD") {
+      dispatch({ type: "SET_LGD_FILE", file: pending });
+    } else {
+      dispatch({ type: "SET_EAD_FILE", file: pending });
+    }
+
+    if (!state.runId) {
+      dispatch({ type: "UPDATE_FILE_STATUS", id: clientId, status: "error" });
+      return;
+    }
+
+    try {
+      const result = await uploadFile(
+        state.runId,
+        kind,
+        file,
+        (pct) => dispatch({ type: "SET_UPLOAD_PROGRESS", fileId: clientId, progress: pct }),
+      );
+      dispatch({ type: "SET_UPLOADED_FILE_ID", fileId: clientId, serverId: result.id });
+      dispatch({
+        type: "UPDATE_FILE_STATUS",
+        id: clientId,
+        status: "ok",
+        hash: result.sha256 ? result.sha256.slice(0, 4) + "…" + result.sha256.slice(-4) : "—",
+        sheets: result.sheet_count ?? 0,
+      });
+    } catch {
+      dispatch({ type: "UPDATE_FILE_STATUS", id: clientId, status: "error" });
+    }
+  }
+
+  function handleDownloadTemplate(kind: FileInputType) {
+    if (!token || !tenantId) return;
+    downloadTemplate(token, tenantId, kind).catch(() => {});
+  }
 
   return (
     <div>
@@ -43,24 +104,27 @@ export function UploadStep() {
       <UploadZone
         type="PD"
         files={state.pdFiles}
-        onAdd={(file: UploadedFile) => dispatch({ type: "ADD_PD_FILE", file })}
+        onAdd={(file) => handleAdd("PD", file)}
         onRemove={(id) => dispatch({ type: "REMOVE_PD_FILE", id })}
+        onDownloadTemplate={() => handleDownloadTemplate("PD")}
       />
 
       {/* LGD zone */}
       <UploadZone
         type="LGD"
         files={state.lgdFile ? [state.lgdFile] : []}
-        onAdd={(file: UploadedFile) => dispatch({ type: "SET_LGD_FILE", file })}
+        onAdd={(file) => handleAdd("LGD", file)}
         onRemove={() => dispatch({ type: "SET_LGD_FILE", file: null })}
+        onDownloadTemplate={() => handleDownloadTemplate("LGD")}
       />
 
       {/* EAD zone */}
       <UploadZone
         type="EAD"
         files={state.eadFile ? [state.eadFile] : []}
-        onAdd={(file: UploadedFile) => dispatch({ type: "SET_EAD_FILE", file })}
+        onAdd={(file) => handleAdd("EAD", file)}
         onRemove={() => dispatch({ type: "SET_EAD_FILE", file: null })}
+        onDownloadTemplate={() => handleDownloadTemplate("EAD")}
       />
     </div>
   );

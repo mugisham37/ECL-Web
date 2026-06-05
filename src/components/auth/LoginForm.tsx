@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +18,15 @@ export function LoginForm() {
     loginAction,
     undefined
   );
+  const router = useRouter();
 
-  const hasError = !!state?.error;
+  useEffect(() => {
+    if (state?.error === "MFA_REQUIRED" && state?.challengeToken) {
+      router.push(`/sign-in/mfa?t=${encodeURIComponent(state.challengeToken)}`);
+    }
+  }, [state, router]);
+
+  const hasError = !!state?.error && state.error !== "MFA_REQUIRED";
 
   return (
     <AuthCard shake={hasError} key={state?.error}>

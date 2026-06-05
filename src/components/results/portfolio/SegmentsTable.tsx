@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { StageMixBar } from "../shared/StageMixBar";
 import { ResultsDeltaBadge } from "../shared/ResultsDeltaBadge";
-import { fmtKes } from "@/lib/results-mock";
+
 import type { SegmentData } from "@/lib/results-types";
+
+function fmtKes(n: number): string { return Math.abs(n).toLocaleString("en-US"); }
 
 interface SegmentsTableProps {
   segments: SegmentData[];
