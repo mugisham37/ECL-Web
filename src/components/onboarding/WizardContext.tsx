@@ -39,7 +39,11 @@ export type WizardAction =
   | { type: "OPEN_SKIP_MODAL" }
   | { type: "OPEN_REQUIRED_MODAL" }
   | { type: "CLOSE_MODAL" }
-  | { type: "FINISH_DONE"; variant: "success" | "saved" };
+  | { type: "FINISH_DONE"; variant: "success" | "saved" }
+  | {
+      type: "RESTORE_PROGRESS";
+      data: Partial<Pick<WizardState, "profile" | "segments" | "collateral" | "invites" | "step">>;
+    };
 
 // ── Default state ──────────────────────────────────────────────────────────
 
@@ -179,6 +183,20 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         requiredModalOpen: false,
         doneVariant: action.variant,
       };
+
+    case "RESTORE_PROGRESS": {
+      const { profile, segments, collateral, invites, step } = action.data;
+      const restoredStep = step ?? state.step;
+      return {
+        ...state,
+        profile: profile ?? state.profile,
+        segments: segments ?? state.segments,
+        collateral: collateral ?? state.collateral,
+        invites: invites ?? state.invites,
+        step: restoredStep,
+        prevStep: restoredStep,
+      };
+    }
 
     default:
       return state;

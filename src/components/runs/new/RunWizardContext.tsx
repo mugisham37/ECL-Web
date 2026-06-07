@@ -138,7 +138,10 @@ export function useRunWizard() {
 // ── Validation helpers ────────────────────────────────────────────────────
 
 export function isUploadReady(state: NewRunState): boolean {
-  return state.pdFiles.length > 0 && state.lgdFile !== null && state.eadFile !== null;
+  const pdOk = state.pdFiles.length > 0 && state.pdFiles.every((f) => f.status === "ok");
+  const lgdOk = state.lgdFile !== null && state.lgdFile.status === "ok";
+  const eadOk = state.eadFile !== null && state.eadFile.status === "ok";
+  return pdOk && lgdOk && eadOk;
 }
 
 export function canContinueFrom(state: NewRunState): boolean {

@@ -32,6 +32,18 @@ export const authConfig = {
 
       if (isProtected && !isLoggedIn) return false;
 
+      const isEmailVerified = (auth?.user as Record<string, unknown> | undefined)
+        ?.isEmailVerified as boolean | undefined;
+      const onVerifyEmailPage = nextUrl.pathname.startsWith("/verify-email");
+
+      // Email not verified → block protected routes, send to pending page
+      if (isLoggedIn && isProtected && isEmailVerified === false && !onVerifyEmailPage) {
+        const email = encodeURIComponent(
+          (auth?.user as { email?: string } | undefined)?.email ?? ""
+        );
+        return Response.redirect(new URL(`/verify-email-pending?email=${email}`, nextUrl));
+      }
+
       const isOnboardingComplete = (auth?.user as Record<string, unknown> | undefined)
         ?.isOnboardingComplete as boolean | undefined;
       const onOnboardingPage = nextUrl.pathname.startsWith("/setup/onboarding");

@@ -63,6 +63,24 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       },
     }),
     Credentials({
+      id: "post-registration",
+      credentials: {
+        preAuthData: { label: "Pre-Auth Data", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.preAuthData) return null;
+        try {
+          const data = JSON.parse(credentials.preAuthData as string) as {
+            access_token: string;
+            user: Record<string, unknown>;
+          };
+          return buildUserFromAuthData(data);
+        } catch {
+          return null;
+        }
+      },
+    }),
+    Credentials({
       id: "mfa-credentials",
       credentials: {
         challengeToken: { label: "Challenge Token", type: "text" },
@@ -90,7 +108,13 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === "update" && session) {
+        if (typeof (session as Record<string, unknown>).isEmailVerified === "boolean")
+          token.isEmailVerified = (session as Record<string, unknown>).isEmailVerified as boolean;
+        if (typeof (session as Record<string, unknown>).isOnboardingComplete === "boolean")
+          token.isOnboardingComplete = (session as Record<string, unknown>).isOnboardingComplete as boolean;
+      }
       if (user) {
         token.accessToken = (user as Record<string, unknown>).accessToken as string;
         token.tenantId = (user as Record<string, unknown>).tenantId as string;

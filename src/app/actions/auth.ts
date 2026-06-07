@@ -45,8 +45,15 @@ export async function loginAction(
       redirectTo: "/dashboard",
     });
   } catch (e) {
-    if (e instanceof AuthError) {
-      if (e.type === "CallbackRouteError") {
+    // NextAuth v5 beta may not always pass instanceof AuthError across
+    // module boundaries — use the type property as the primary discriminator.
+    const errType =
+      e != null && typeof e === "object" && "type" in e
+        ? (e as { type: string }).type
+        : "";
+
+    if (e instanceof AuthError || errType) {
+      if (errType === "CallbackRouteError") {
         const cause = (e as unknown as { cause?: { err?: Error } }).cause?.err;
         const msg = cause?.message ?? "";
         if (msg.startsWith("MFA_REQUIRED:")) {
@@ -54,7 +61,7 @@ export async function loginAction(
         }
         return { error: "Sign-in failed. Please try again." };
       }
-      if (e.type === "CredentialsSignin") {
+      if (errType === "CredentialsSignin") {
         return { error: "Email or password incorrect." };
       }
       return { error: "Something went wrong. Please try again." };
@@ -115,19 +122,38 @@ export async function signUpAction(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = (err as Record<string, string>).detail;
-    if (detail?.toLowerCase().includes("email")) {
+    const err = await res.json().catch(() => ({})) as Record<string, string>;
+    const code = err.code ?? "";
+    const field = err.field ?? "";
+    if (code === "EMAIL_TAKEN" || field === "email") {
       return { error: "An account with this email already exists." };
     }
-    return { error: detail ?? "Registration failed. Please try again." };
+    if (code === "SLUG_TAKEN" || field === "company_name") {
+      return { error: "A workspace with this company name already exists." };
+    }
+    if (code === "PASSWORD_PWNED") {
+      return { error: "That password has appeared in a data breach. Please choose a different one." };
+    }
+    if (code === "PASSWORD_MISSING_MIX") {
+      return { error: "Password must contain both letters and numbers." };
+    }
+    if (code === "PASSWORD_TOO_SHORT") {
+      return { error: "Password must be at least 8 characters." };
+    }
+    if (code === "PASSWORD_CONTAINS_FORBIDDEN") {
+      return { error: "Password cannot contain your name or company name." };
+    }
+    return { error: err.detail ?? "Registration failed. Please try again." };
   }
 
+  // Use tokens from the registration response directly — avoids a second login API
+  // call that would race the uncommitted registration transaction.
+  const body = await res.json() as { data: { access_token: string; user: Record<string, unknown> } };
+
   try {
-    await signIn("credentials", {
-      email: validated.data.email,
-      password: validated.data.password,
-      redirectTo: "/setup/onboarding",
+    await signIn("post-registration", {
+      preAuthData: JSON.stringify(body.data),
+      redirectTo: `/verify-email-pending?email=${encodeURIComponent(validated.data.email)}`,
     });
   } catch (e) {
     if (e instanceof AuthError) {
@@ -232,4 +258,28 @@ export async function inviteAction(
   }
 
   redirect("/sign-in?activated=1");
+}
+
+export async function verifyEmailAction(token: string): Promise<AuthFormState> {
+  const res = await fetch(
+    `${BACKEND_URL}/api/v1/auth/verify-email/${encodeURIComponent(token)}`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const code = (err as Record<string, string>).code ?? "";
+    if (code === "TOKEN_EXPIRED" || code === "TOKEN_INVALID") {
+      return { error: "This verification link has expired. Please request a new one." };
+    }
+    return { error: "Verification failed. Please try again." };
+  }
+  return { success: true };
+}
+
+export async function resendVerificationAction(email: string): Promise<AuthFormState> {
+  await fetch(`${BACKEND_URL}/api/v1/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  }).catch(() => {});
+  return { success: true };
 }

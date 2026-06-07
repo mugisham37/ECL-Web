@@ -4,7 +4,7 @@ import { OnboardingSchema } from "@/lib/onboarding-schema";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
-export type OnboardingActionState = { error?: string } | undefined;
+export type OnboardingActionState = { error?: string; success?: boolean } | undefined;
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
@@ -72,7 +72,7 @@ export async function finishOnboardingAction(
     };
   }
 
-  redirect("/dashboard");
+  return { success: true };
 }
 
 export async function saveAndExitAction(
@@ -93,4 +93,44 @@ export async function saveAndExitAction(
   }).catch(() => null); // best-effort save; don't block the redirect
 
   redirect("/dashboard");
+}
+
+export async function autoSaveProgressAction(
+  progress: Record<string, unknown>
+): Promise<void> {
+  const session = await auth();
+  if (!session) return;
+
+  const tenantId = session.user.tenantId;
+
+  await fetch(`${BACKEND_URL}/api/v1/onboarding/${tenantId}/save-progress`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ progress }),
+  }).catch(() => null);
+}
+
+export async function getOnboardingProgressAction(): Promise<Record<string, unknown> | null> {
+  const session = await auth();
+  if (!session) return null;
+
+  const tenantId = session.user.tenantId;
+
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/api/v1/onboarding/${tenantId}/status`,
+      {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) return null;
+    const body = await res.json() as { data?: { progress?: Record<string, unknown> | null } };
+    return body.data?.progress ?? null;
+  } catch {
+    return null;
+  }
 }

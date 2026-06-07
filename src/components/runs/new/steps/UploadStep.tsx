@@ -3,8 +3,6 @@
 import { UploadZone } from "../UploadZone";
 import { useRunWizard } from "../RunWizardContext";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { useApiSession } from "@/hooks/use-api-session";
-import { downloadTemplate } from "@/lib/api/runs";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
 
 function formatBytes(bytes: number): string {
@@ -16,7 +14,6 @@ function formatBytes(bytes: number): string {
 export function UploadStep() {
   const { state, dispatch } = useRunWizard();
   const { uploadFile } = useFileUpload();
-  const { token, tenantId } = useApiSession();
 
   async function handleAdd(kind: FileInputType, file: File) {
     const clientId = `${kind}-${Date.now()}`;
@@ -64,8 +61,12 @@ export function UploadStep() {
   }
 
   function handleDownloadTemplate(kind: FileInputType) {
-    if (!token || !tenantId) return;
-    downloadTemplate(token, tenantId, kind).catch(() => {});
+    const a = document.createElement("a");
+    a.href = `/templates/ECL_${kind}_template.xlsx`;
+    a.download = `ECL_${kind}_template.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   return (

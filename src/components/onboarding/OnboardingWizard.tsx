@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useActionState } from "react";
+import { useRef, useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { WizardProvider, useWizard, isStepValid } from "./WizardContext";
 import { OnboardingLayout } from "./OnboardingLayout";
@@ -14,7 +16,12 @@ import { SegmentsStep } from "./steps/SegmentsStep";
 import { CollateralStep } from "./steps/CollateralStep";
 import { TeamStep } from "./steps/TeamStep";
 import { ReviewStep } from "./steps/ReviewStep";
-import { finishOnboardingAction } from "@/app/actions/onboarding";
+import {
+  finishOnboardingAction,
+  autoSaveProgressAction,
+  getOnboardingProgressAction,
+} from "@/app/actions/onboarding";
+import type { WizardState } from "./WizardContext";
 
 interface WizardInnerProps {
   userName?: string;
@@ -25,12 +32,38 @@ function WizardInner({ userName, orgName }: WizardInnerProps) {
   const { state, dispatch } = useWizard();
   const { step } = state;
   const formRef = useRef<HTMLFormElement>(null);
+  const { update } = useSession();
+  const router = useRouter();
 
-  const [, submitAction, pending] = useActionState(finishOnboardingAction, undefined);
+  const [submitState, submitAction, pending] = useActionState(finishOnboardingAction, undefined);
+
+  // Redirect to dashboard after successful onboarding, updating the session first
+  useEffect(() => {
+    if (!submitState?.success) return;
+    async function complete() {
+      await update({ isOnboardingComplete: true });
+      router.push("/dashboard");
+    }
+    void complete();
+  }, [submitState?.success, update, router]);
+
+  // Restore saved progress from backend on first mount
+  useEffect(() => {
+    async function restoreProgress() {
+      const progress = await getOnboardingProgressAction();
+      if (!progress) return;
+      dispatch({
+        type: "RESTORE_PROGRESS",
+        data: progress as Partial<Pick<WizardState, "profile" | "segments" | "collateral" | "invites" | "step">>,
+      });
+    }
+    void restoreProgress();
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isNumeric = typeof step === "number";
   const stepNum = isNumeric ? (step as number) : -1;
-  // Derive slide direction from state (both are plain React state, not refs)
   const prevStepNum = typeof state.prevStep === "number" ? state.prevStep : -1;
   const direction: 1 | -1 = stepNum >= prevStepNum ? 1 : -1;
 
@@ -52,7 +85,17 @@ function WizardInner({ userName, orgName }: WizardInnerProps) {
       return;
     }
 
-    dispatch({ type: "GO_TO_STEP", step: (stepNum + 1) as 1 | 2 | 3 | 4 });
+    const nextStep = (stepNum + 1) as 1 | 2 | 3 | 4;
+    dispatch({ type: "GO_TO_STEP", step: nextStep });
+
+    // Auto-save progress in the background
+    void autoSaveProgressAction({
+      profile: state.profile,
+      segments: state.segments,
+      collateral: state.collateral,
+      invites: state.invites,
+      step: nextStep,
+    });
   }
 
   const isWide = step === 4 || step === "welcome";
@@ -98,7 +141,11 @@ function WizardInner({ userName, orgName }: WizardInnerProps) {
               {stepNum === 3 && <TeamStep />}
               {stepNum === 4 && <ReviewStep />}
 
-              <WizardFooter onContinue={handleContinue} pending={pending} />
+              <WizardFooter
+                onContinue={handleContinue}
+                pending={pending}
+                error={submitState?.error}
+              />
             </motion.div>
           </motion.div>
         )}
