@@ -37,15 +37,22 @@ function WizardInner({ userName, orgName }: WizardInnerProps) {
 
   const [submitState, submitAction, pending] = useActionState(finishOnboardingAction, undefined);
 
-  // Redirect to dashboard after successful onboarding, updating the session first
+  // Redirect to dashboard after successful onboarding, updating the session first.
+  // `update` and `router` are intentionally omitted from deps — `update` gets a new
+  // reference every time the session changes (Auth.js useCallback with [session] deps),
+  // which would re-trigger this effect on every session update and create an infinite loop.
   useEffect(() => {
     if (!submitState?.success) return;
+    let active = true;
     async function complete() {
       await update({ isOnboardingComplete: true });
+      if (!active) return;
       router.push("/dashboard");
     }
     void complete();
-  }, [submitState?.success, update, router]);
+    return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitState?.success]);
 
   // Restore saved progress from backend on first mount
   useEffect(() => {

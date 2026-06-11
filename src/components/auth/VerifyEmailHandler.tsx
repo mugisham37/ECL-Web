@@ -15,12 +15,14 @@ interface Props {
 type Status = "loading" | "success" | "error";
 
 export function VerifyEmailHandler({ token }: Props) {
-  const { data: session, update } = useSession();
+  const { data: session, update, status: sessionStatus } = useSession();
   const router = useRouter();
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    if (sessionStatus === "loading") return;
+
     if (!token) {
       setErrorMessage("Missing verification token. Please use the link from your email.");
       setStatus("error");
@@ -52,8 +54,7 @@ export function VerifyEmailHandler({ token }: Props) {
 
     void verify();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, sessionStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === "loading") {
     return (
