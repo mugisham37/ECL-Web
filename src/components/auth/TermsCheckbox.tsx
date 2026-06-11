@@ -14,9 +14,9 @@ export function TermsCheckbox({ onCheckedChange }: TermsCheckboxProps) {
 
   return (
     <div className="flex items-start gap-2">
+      {checked ? <input type="hidden" name="terms" value="true" /> : null}
       <Checkbox
         id="terms"
-        name="terms"
         checked={checked}
         onCheckedChange={(v) => {
           const isChecked = v === true;

@@ -16,6 +16,8 @@ export function UploadStep() {
   const { uploadFile } = useFileUpload();
 
   async function handleAdd(kind: FileInputType, file: File) {
+    if (!state.runId) return;
+
     const clientId = `${kind}-${Date.now()}`;
     const pending: UploadedFile = {
       id: clientId,
@@ -33,11 +35,6 @@ export function UploadStep() {
       dispatch({ type: "SET_LGD_FILE", file: pending });
     } else {
       dispatch({ type: "SET_EAD_FILE", file: pending });
-    }
-
-    if (!state.runId) {
-      dispatch({ type: "UPDATE_FILE_STATUS", id: clientId, status: "error" });
-      return;
     }
 
     try {
@@ -108,6 +105,7 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("PD", file)}
         onRemove={(id) => dispatch({ type: "REMOVE_PD_FILE", id })}
         onDownloadTemplate={() => handleDownloadTemplate("PD")}
+        disabled={!state.runId}
       />
 
       {/* LGD zone */}
@@ -117,6 +115,7 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("LGD", file)}
         onRemove={() => dispatch({ type: "SET_LGD_FILE", file: null })}
         onDownloadTemplate={() => handleDownloadTemplate("LGD")}
+        disabled={!state.runId}
       />
 
       {/* EAD zone */}
@@ -126,6 +125,7 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("EAD", file)}
         onRemove={() => dispatch({ type: "SET_EAD_FILE", file: null })}
         onDownloadTemplate={() => handleDownloadTemplate("EAD")}
+        disabled={!state.runId}
       />
     </div>
   );

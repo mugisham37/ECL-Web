@@ -7,9 +7,9 @@ import { UploadFilePill } from "./shared/UploadFilePill";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
 
 const ZONE_META: Record<FileInputType, { title: string; sub: string; multi: boolean; sizeHint: string }> = {
-  PD:  { title: "Probability of Default", sub: "Monthly loan listings — multiple files are combined",    multi: true,  sizeHint: "Up to 10 files · 25 MB each" },
-  LGD: { title: "Loss Given Default",     sub: "Collateral register with customer linkage",              multi: false, sizeHint: "Single workbook · 25 MB" },
-  EAD: { title: "Exposure at Default",    sub: "Balances & schedules for the rundown",                   multi: false, sizeHint: "Single workbook · 25 MB" },
+  PD:  { title: "Probability of Default", sub: "Monthly loan listings — multiple files are combined",           multi: true,  sizeHint: "Up to 10 files · 25 MB each" },
+  LGD: { title: "Loss Given Default",     sub: "Collateral register with customer linkage — one file per run",  multi: false, sizeHint: "Single workbook · 25 MB" },
+  EAD: { title: "Exposure at Default",    sub: "Balances & schedules for the rundown — one file per run",       multi: false, sizeHint: "Single workbook · 25 MB" },
 };
 
 interface UploadZoneProps {
@@ -18,19 +18,22 @@ interface UploadZoneProps {
   onAdd: (file: File) => void;
   onRemove: (id: string) => void;
   onDownloadTemplate?: () => void;
+  disabled?: boolean;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }: UploadZoneProps) {
+export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, disabled }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const meta = ZONE_META[type];
-  const showDropzone = meta.multi || files.length === 0;
+  const isReplace = !meta.multi && files.length > 0;
 
   function openPicker() {
+    if (disabled) return;
     inputRef.current?.click();
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (disabled) return;
     const picked = Array.from(e.target.files ?? []);
     picked.forEach(onAdd);
     // Reset so the same file can be re-selected after removal
@@ -40,6 +43,7 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragOver(false);
+    if (disabled) return;
     const dropped = Array.from(e.dataTransfer.files).filter((f) =>
       f.name.endsWith(".xlsx") || f.name.endsWith(".xls"),
     );
@@ -58,6 +62,7 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
         type="file"
         accept=".xlsx,.xls"
         multiple={meta.multi}
+        disabled={disabled}
         style={{ display: "none" }}
         onChange={handleFileInput}
         aria-hidden="true"
@@ -106,31 +111,45 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
 
       {/* Zone body */}
       <div className="uz-body">
-        {showDropzone && (
-          <div
-            className={`dz${isDragOver ? " over" : ""}`}
-            role="button"
-            tabIndex={0}
-            onClick={openPicker}
-            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={handleDrop}
-            onKeyDown={(e) => e.key === "Enter" && openPicker()}
-            aria-label={`Upload ${type} file${meta.multi ? "s" : ""}`}
-          >
-            <Upload size={26} className="dz-ic" aria-hidden="true" />
-            <div style={{ fontSize: "var(--fs-body)", color: "var(--text-muted)" }}>
-              <strong style={{ color: "var(--text)" }}>
-                {meta.multi ? "Drop .xlsx files" : "Drop one .xlsx file"}
-              </strong>{" "}
-              or{" "}
-              <span className="link-accent">browse</span>
-            </div>
-            <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-subtle)" }}>
-              {meta.sizeHint}
-            </span>
+        <div
+          className={`dz${isDragOver && !disabled ? " over" : ""}${disabled ? " disabled" : ""}`}
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          onClick={openPicker}
+          onDragOver={(e) => { e.preventDefault(); if (!disabled) setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={handleDrop}
+          onKeyDown={(e) => e.key === "Enter" && openPicker()}
+          aria-label={`Upload ${type} file${meta.multi ? "s" : ""}`}
+          aria-disabled={disabled}
+          style={disabled ? { opacity: 0.5, cursor: "default", pointerEvents: "none" } : undefined}
+        >
+          <Upload size={26} className="dz-ic" aria-hidden="true" />
+          <div style={{ fontSize: "var(--fs-body)", color: "var(--text-muted)" }}>
+            <strong style={{ color: "var(--text)" }}>
+              {disabled
+                ? "Preparing run…"
+                : isReplace
+                ? "Drop to replace"
+                : meta.multi
+                ? "Drop .xlsx files"
+                : "Drop one .xlsx file"}
+            </strong>{" "}
+            {!disabled && (
+              <>
+                or{" "}
+                <span className="link-accent">browse</span>
+              </>
+            )}
           </div>
-        )}
+          <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-subtle)" }}>
+            {disabled
+              ? "Almost ready"
+              : isReplace
+              ? "Drop a new file to replace the current one"
+              : meta.sizeHint}
+          </span>
+        </div>
 
         {/* Uploaded files */}
         <div className="uz-files">

@@ -15,7 +15,7 @@ interface Props {
 type Status = "loading" | "success" | "error";
 
 export function VerifyEmailHandler({ token }: Props) {
-  const { update } = useSession();
+  const { data: session, update } = useSession();
   const router = useRouter();
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
@@ -40,8 +40,14 @@ export function VerifyEmailHandler({ token }: Props) {
       }
 
       setStatus("success");
-      await update({ isEmailVerified: true });
-      router.push("/setup/onboarding");
+
+      if (session?.user) {
+        await update({ isEmailVerified: true });
+        router.push("/setup/onboarding");
+        return;
+      }
+
+      router.push("/sign-in?verified=1");
     }
 
     void verify();
@@ -77,7 +83,9 @@ export function VerifyEmailHandler({ token }: Props) {
             Email verified
           </h2>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Redirecting you to onboarding…
+            {session?.user
+              ? "Redirecting you to onboarding…"
+              : "Sign in to continue to onboarding."}
           </p>
         </div>
       </AuthCard>

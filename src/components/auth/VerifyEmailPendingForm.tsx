@@ -14,11 +14,20 @@ interface Props {
 export function VerifyEmailPendingForm({ email }: Props) {
   const [isPending, startTransition] = useTransition();
   const [resendKey, setResendKey] = useState(0);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   function handleResend() {
     if (!email) return;
+    setResendError(null);
+    setResendSuccess(false);
     startTransition(async () => {
-      await resendVerificationAction(email);
+      const result = await resendVerificationAction(email);
+      if (result?.error) {
+        setResendError(result.error);
+        return;
+      }
+      setResendSuccess(true);
       setResendKey((k) => k + 1);
     });
   }
@@ -55,6 +64,18 @@ export function VerifyEmailPendingForm({ email }: Props) {
         {isPending && (
           <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
             Sending…
+          </p>
+        )}
+
+        {resendSuccess && !isPending && (
+          <p className="mt-2 text-sm" style={{ color: "var(--success, #16a34a)" }}>
+            Verification email sent. Check your inbox.
+          </p>
+        )}
+
+        {resendError && (
+          <p className="mt-2 text-sm" style={{ color: "var(--destructive, #dc2626)" }}>
+            {resendError}
           </p>
         )}
 

@@ -276,10 +276,18 @@ export async function verifyEmailAction(token: string): Promise<AuthFormState> {
 }
 
 export async function resendVerificationAction(email: string): Promise<AuthFormState> {
-  await fetch(`${BACKEND_URL}/api/v1/auth/resend-verification`, {
+  const res = await fetch(`${BACKEND_URL}/api/v1/auth/resend-verification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
-  }).catch(() => {});
+  });
+
+  if (!res.ok) {
+    if (res.status === 429) {
+      return { error: "Too many requests. Please wait before requesting another email." };
+    }
+    return { error: "Could not resend verification email. Please try again." };
+  }
+
   return { success: true };
 }
