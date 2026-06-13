@@ -5,10 +5,23 @@ import { motion } from "framer-motion";
 import { useRunWizard } from "../RunWizardContext";
 
 const FALLBACK_FAILURE = {
-  stage: "LGD",
-  message: 'Unknown collateral type: "Warehouse receipt"',
-  ref: "a3f9-2c1b",
+  stage: "unknown",
+  message: "An unexpected error occurred during compute.",
+  ref: "—",
 };
+
+function stageDescription(stage: string): string {
+  switch (stage) {
+    case "execute":
+      return "The run could not be started. Fix the issue below and try again.";
+    case "timeout":
+      return "The compute worker did not finish in time. No results were saved.";
+    case "polling":
+      return "Connection to the server was lost during monitoring. No results were saved.";
+    default:
+      return `The ${stage.toUpperCase()} engine failed. No partial results were saved.`;
+  }
+}
 
 export function FailureTerminal() {
   const { state, dispatch } = useRunWizard();
@@ -17,6 +30,8 @@ export function FailureTerminal() {
   function handleRetry() {
     dispatch({ type: "GO_TO_STEP", step: "upload" });
   }
+
+  const isLgdFailure = failure.stage === "lgd";
 
   return (
     <motion.div
@@ -29,14 +44,21 @@ export function FailureTerminal() {
           <AlertTriangle size={24} />
         </div>
 
-        <h2>Run failed at the {failure.stage} stage</h2>
+        <h2>
+          {failure.stage === "execute"
+            ? "Run failed to start"
+            : failure.stage === "timeout"
+            ? "Compute timed out"
+            : failure.stage === "polling"
+            ? "Connection lost"
+            : `Run failed at the ${failure.stage.toUpperCase()} stage`}
+        </h2>
 
         <p
           className="rc-sub"
           style={{ maxWidth: "46ch", marginLeft: "auto", marginRight: "auto" }}
         >
-          A collateral type in your file wasn&apos;t in the reference table, so{" "}
-          {failure.stage} couldn&apos;t be computed. No partial results were saved.
+          {stageDescription(failure.stage)}
         </p>
 
         <div
@@ -48,10 +70,11 @@ export function FailureTerminal() {
             <div style={{ fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"] }}>
               {failure.message}
             </div>
-            <div className="t-caption" style={{ marginTop: 2 }}>
-              {failure.stage}_file.xlsx ·{" "}
-              <span className="mono">ref {failure.ref}</span>
-            </div>
+            {failure.ref !== "—" && (
+              <div className="t-caption" style={{ marginTop: 2 }}>
+                <span className="mono">ref {failure.ref}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -73,18 +96,20 @@ export function FailureTerminal() {
             Edit inputs &amp; retry
           </button>
 
-          <button
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              height: 44, padding: "0 20px",
-              background: "var(--surface)", color: "var(--text)",
-              border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
-              fontSize: "var(--fs-h3)", fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
-              cursor: "pointer",
-            }}
-          >
-            Add collateral type in Admin
-          </button>
+          {isLgdFailure && (
+            <button
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                height: 44, padding: "0 20px",
+                background: "var(--surface)", color: "var(--text)",
+                border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
+                fontSize: "var(--fs-h3)", fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
+                cursor: "pointer",
+              }}
+            >
+              Add collateral type in Admin
+            </button>
+          )}
 
           <button
             style={{

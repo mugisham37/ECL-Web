@@ -1,8 +1,11 @@
 "use client";
 
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { UploadZone } from "../UploadZone";
 import { useRunWizard } from "../RunWizardContext";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import { useApiSession } from "@/hooks/use-api-session";
+import { createRun } from "@/lib/api/runs";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
 
 function formatBytes(bytes: number): string {
@@ -14,6 +17,19 @@ function formatBytes(bytes: number): string {
 export function UploadStep() {
   const { state, dispatch } = useRunWizard();
   const { uploadFile } = useFileUpload();
+  const { token, tenantId } = useApiSession();
+
+  async function handleRetryInit() {
+    if (!token || !tenantId) return;
+    dispatch({ type: "SET_RUN_INIT_ERROR", error: null });
+    try {
+      const raw = await createRun(token, tenantId, { name: state.runName });
+      dispatch({ type: "SET_RUN_ID", runId: raw.fullId });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to start a new run. Check your connection and try again.";
+      dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
+    }
+  }
 
   async function handleAdd(kind: FileInputType, file: File) {
     if (!state.runId) return;
@@ -51,9 +67,12 @@ export function UploadStep() {
         status: "ok",
         hash: result.sha256 ? result.sha256.slice(0, 4) + "…" + result.sha256.slice(-4) : "—",
         sheets: result.sheet_count ?? 0,
+        backendUploadId: result.id,
       });
-    } catch {
-      dispatch({ type: "UPDATE_FILE_STATUS", id: clientId, status: "error" });
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Upload failed. Please try again.";
+      dispatch({ type: "UPDATE_FILE_STATUS", id: clientId, status: "error", errorMessage });
     }
   }
 
@@ -68,6 +87,39 @@ export function UploadStep() {
 
   return (
     <div>
+      {/* Run init error banner */}
+      {state.runInitError && (
+        <div
+          className="callout callout-error"
+          style={{ marginBottom: "var(--sp-4)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <AlertCircle size={16} className="ic" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+            <div>
+              <div style={{ fontWeight: "var(--fw-semibold)" as React.CSSProperties["fontWeight"], marginBottom: 2 }}>
+                Could not create run
+              </div>
+              <div style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+                {state.runInitError}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRetryInit}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+              height: 28, padding: "0 10px",
+              background: "none", border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
+              fontSize: "var(--fs-caption)", color: "var(--text)", cursor: "pointer",
+            }}
+          >
+            <RefreshCw size={12} />
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Header card */}
       <div className="run-card" style={{ marginBottom: "var(--sp-4)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>

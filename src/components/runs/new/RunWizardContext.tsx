@@ -15,6 +15,7 @@ const initialState: NewRunState = {
   prevStep: "upload",
   runName: "May 2026",
   runId: null,
+  runInitError: null,
   pdFiles: [],
   lgdFile: null,
   eadFile: null,
@@ -81,7 +82,10 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
       return { ...state, cancelModalOpen: false };
 
     case "SET_RUN_ID":
-      return { ...state, runId: action.runId };
+      return { ...state, runId: action.runId, runInitError: null };
+
+    case "SET_RUN_INIT_ERROR":
+      return { ...state, runInitError: action.error };
 
     case "SET_UPLOAD_PROGRESS":
       return { ...state, uploadProgress: { ...state.uploadProgress, [action.fileId]: action.progress } };
@@ -90,10 +94,17 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
       return { ...state, uploadedFileIds: { ...state.uploadedFileIds, [action.fileId]: action.serverId } };
 
     case "UPDATE_FILE_STATUS": {
-      const { id, status, hash, sheets } = action;
+      const { id, status, hash, sheets, errorMessage, backendUploadId } = action;
       function patchFile(f: UploadedFile): UploadedFile {
         if (f.id !== id) return f;
-        return { ...f, status, ...(hash !== undefined ? { hash } : {}), ...(sheets !== undefined ? { sheets } : {}) };
+        return {
+          ...f,
+          status,
+          ...(hash !== undefined ? { hash } : {}),
+          ...(sheets !== undefined ? { sheets } : {}),
+          ...(errorMessage !== undefined ? { errorMessage } : {}),
+          ...(backendUploadId !== undefined ? { backendUploadId } : {}),
+        };
       }
       return {
         ...state,
@@ -105,6 +116,9 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
 
     case "SET_ACCEPTED_WARNING_IDS":
       return { ...state, acceptedWarningIds: action.ids };
+
+    case "CLEAR_VALIDATION_RESULT":
+      return { ...state, validationResult: null, isValidating: false };
 
     default:
       return state;

@@ -7,6 +7,7 @@ const BASE_URL =
 
 export interface RunListItemRaw {
   id: string;
+  fullId: string;
   name: string;
   reporting_period?: string | null;
   created_at: string;
@@ -261,6 +262,18 @@ export async function downloadTemplate(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export async function deleteUpload(
+  token: string,
+  tenantId: string,
+  runId: string,
+  uploadId: string,
+): Promise<void> {
+  return apiFetch<void>(`/tenants/${tenantId}/runs/${runId}/uploads/${uploadId}`, {
+    token,
+    method: "DELETE",
+  });
 }
 
 // ── XHR file upload with progress ─────────────────────────────────────────

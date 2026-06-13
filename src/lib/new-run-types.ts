@@ -28,6 +28,8 @@ export interface UploadedFile {
   type: FileInputType;
   status: FileStatus;
   hash: string;        // "a3f9…2c1b"
+  errorMessage?: string;
+  backendUploadId?: string;
 }
 
 // ── Validation ────────────────────────────────────────────────────────────
@@ -90,6 +92,7 @@ export interface NewRunState {
   prevStep: NewRunStep;
   runName: string;
   runId: string | null;
+  runInitError: string | null;
   pdFiles: UploadedFile[];
   lgdFile: UploadedFile | null;
   eadFile: UploadedFile | null;
@@ -111,6 +114,7 @@ export interface NewRunState {
 export type NewRunAction =
   | { type: "SET_RUN_NAME"; name: string }
   | { type: "SET_RUN_ID"; runId: string }
+  | { type: "SET_RUN_INIT_ERROR"; error: string | null }
   | { type: "ADD_PD_FILE"; file: UploadedFile }
   | { type: "REMOVE_PD_FILE"; id: string }
   | { type: "SET_LGD_FILE"; file: UploadedFile | null }
@@ -127,8 +131,9 @@ export type NewRunAction =
   | { type: "CLOSE_CANCEL_MODAL" }
   | { type: "SET_UPLOAD_PROGRESS"; fileId: string; progress: number }
   | { type: "SET_UPLOADED_FILE_ID"; fileId: string; serverId: string }
-  | { type: "UPDATE_FILE_STATUS"; id: string; status: FileStatus; hash?: string; sheets?: number }
-  | { type: "SET_ACCEPTED_WARNING_IDS"; ids: string[] };
+  | { type: "UPDATE_FILE_STATUS"; id: string; status: FileStatus; hash?: string; sheets?: number; errorMessage?: string; backendUploadId?: string }
+  | { type: "SET_ACCEPTED_WARNING_IDS"; ids: string[] }
+  | { type: "CLEAR_VALIDATION_RESULT" };
 
 // ── Mock seed files ───────────────────────────────────────────────────────
 

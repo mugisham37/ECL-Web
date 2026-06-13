@@ -43,8 +43,8 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function formatEcl(amount: number | null, currency: string): React.ReactNode {
-  if (amount === null) return <span className="amount zero">—</span>;
+function formatEcl(amount: number | null | undefined, currency: string): React.ReactNode {
+  if (amount == null) return <span className="amount zero">—</span>;
   return (
     <span className="amount">
       {currency} {amount.toLocaleString("en-US")}

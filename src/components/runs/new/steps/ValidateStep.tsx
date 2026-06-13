@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ValidationSummary } from "../ValidationSummary";
 import { ValidationFileItem } from "../ValidationFileItem";
 import { useRunWizard } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
-import { validateRun } from "@/lib/api/runs";
+import { validateRun, uploadRunFile, deleteUpload } from "@/lib/api/runs";
 import { mapValidationResult } from "@/lib/api/mappers";
+import type { ValidationFileResult } from "@/lib/new-run-types";
 
 export function ValidateStep() {
   const { state, dispatch } = useRunWizard();
   const { token, tenantId } = useApiSession();
+  const [reuploadingId, setReuploadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.isValidating || state.validationResult || !state.runId || !token || !tenantId) return;
@@ -32,19 +34,48 @@ export function ValidateStep() {
         const result = mapValidationResult(raw, uploadedFiles);
         dispatch({ type: "SET_VALIDATION_RESULT", result });
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        const subSummary =
+          err instanceof Error
+            ? err.message
+            : "Could not connect to the server. Check your connection and try again.";
         dispatch({
           type: "SET_VALIDATION_RESULT",
           result: {
             status: "blocking",
             summary: "Validation failed",
-            subSummary: "Could not connect to the server. Check your connection and try again.",
+            subSummary,
             fileResults: [],
           },
         });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [state.validationResult, state.isValidating, state.runId]);
+
+  async function handleReupload(fileResult: ValidationFileResult, newFile: File) {
+    const { file } = fileResult;
+    setReuploadingId(file.id);
+    try {
+      if (file.backendUploadId) {
+        await deleteUpload(token!, tenantId!, state.runId!, file.backendUploadId);
+      }
+      const result = await uploadRunFile(token!, tenantId!, state.runId!, file.type, newFile);
+      dispatch({
+        type: "UPDATE_FILE_STATUS",
+        id: file.id,
+        status: "ok",
+        sheets: result.sheet_count ?? 0,
+        hash: result.sha256 ? result.sha256.slice(0, 4) + "…" + result.sha256.slice(-4) : "—",
+        backendUploadId: result.id,
+      });
+      dispatch({ type: "CLEAR_VALIDATION_RESULT" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Re-upload failed";
+      dispatch({ type: "UPDATE_FILE_STATUS", id: file.id, status: "error", errorMessage: msg });
+    } finally {
+      setReuploadingId(null);
+    }
+  }
 
   return (
     <div>
@@ -89,6 +120,8 @@ export function ValidateStep() {
                 key={result.file.id}
                 result={result}
                 zoneLabel={result.file.type}
+                onReupload={(newFile) => handleReupload(result, newFile)}
+                isReuploading={reuploadingId === result.file.id}
               />
             ))}
 

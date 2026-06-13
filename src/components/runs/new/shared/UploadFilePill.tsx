@@ -35,7 +35,10 @@ export function UploadFilePill({ file, onRemove }: UploadFilePillProps) {
         <div className="fp-meta">
           <div className="fp-n">{file.name}</div>
           <div className="fp-d">
-            {file.size} · {file.sheets} sheet{file.sheets !== 1 ? "s" : ""}
+            {file.status === "error" && file.errorMessage
+              ? <span style={{ color: "var(--danger)" }}>{file.errorMessage}</span>
+              : <>{file.size} · {file.sheets} sheet{file.sheets !== 1 ? "s" : ""}</>
+            }
             {file.status === "warn" && (
               <span style={{ color: "var(--warning)", marginLeft: 6 }}>· needs review</span>
             )}

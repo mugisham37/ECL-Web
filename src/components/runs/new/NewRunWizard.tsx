@@ -50,9 +50,13 @@ function WizardInner() {
   // Create a draft run on mount so uploads have a run ID to attach to
   useEffect(() => {
     if (!isAuthenticated || !token || !tenantId) return;
+    dispatch({ type: "SET_RUN_INIT_ERROR", error: null });
     createRun(token, tenantId, { name: runName })
-      .then((raw) => dispatch({ type: "SET_RUN_ID", runId: raw.id }))
-      .catch(() => { /* best-effort; upload step will show an error if runId is null */ });
+      .then((raw) => dispatch({ type: "SET_RUN_ID", runId: raw.fullId }))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to start a new run. Check your connection and try again.";
+        dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 

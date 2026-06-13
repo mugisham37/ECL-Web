@@ -7,9 +7,11 @@ import type { ValidationFileResult } from "@/lib/new-run-types";
 interface ValidationFileItemProps {
   result: ValidationFileResult;
   zoneLabel: string;
+  onReupload: (newFile: File) => void;
+  isReuploading?: boolean;
 }
 
-export function ValidationFileItem({ result, zoneLabel }: ValidationFileItemProps) {
+export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploading }: ValidationFileItemProps) {
   const [open, setOpen] = useState(result.issues.length > 0);
   const { file, issues } = result;
   const hasIssues = issues.length > 0;
@@ -81,11 +83,23 @@ export function ValidationFileItem({ result, zoneLabel }: ValidationFileItemProp
               display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12,
               height: 28, padding: "0 10px", background: "var(--surface)", color: "var(--text)",
               border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
-              fontSize: "var(--fs-caption)", cursor: "pointer",
+              fontSize: "var(--fs-caption)", cursor: isReuploading ? "not-allowed" : "pointer",
+              opacity: isReuploading ? 0.6 : 1,
+            }}
+            disabled={isReuploading}
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".xlsx,.xls";
+              input.onchange = (e) => {
+                const picked = (e.target as HTMLInputElement).files?.[0];
+                if (picked) onReupload(picked);
+              };
+              input.click();
             }}
           >
-            <RefreshCw size={12} />
-            Re-upload {file.name}
+            <RefreshCw size={12} style={{ animation: isReuploading ? "spin 0.7s linear infinite" : "none" }} />
+            {isReuploading ? "Uploading…" : `Re-upload ${file.name}`}
           </button>
         </div>
       )}

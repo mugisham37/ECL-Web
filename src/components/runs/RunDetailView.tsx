@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { RunDetailHeader } from "./RunDetailHeader";
 import { RunDetailKpiStrip } from "./RunDetailKpiStrip";
@@ -8,7 +9,7 @@ import { RunDetailTabs } from "./RunDetailTabs";
 import { RunActionModal } from "./RunActionModal";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { useApiSession } from "@/hooks/use-api-session";
-import { fetchRun } from "@/lib/api/runs";
+import { fetchRun, rerunRun, deleteRun } from "@/lib/api/runs";
 import { mapRunDetail } from "@/lib/api/mappers";
 import type { ModalKind } from "./RunActionModal";
 import type { RunDetail } from "@/lib/runs-types";
@@ -21,11 +22,12 @@ interface RunDetailViewProps {
 
 export function RunDetailView({ run }: RunDetailViewProps) {
   const [modalKind, setModalKind] = useState<ModalKind>(null);
-  const { tenantId } = useApiSession();
+  const router = useRouter();
+  const { token, tenantId } = useApiSession();
 
   const liveQuery = useAuthedQuery(
     ["run-detail", tenantId, run.fullId],
-    (token, tid) => fetchRun(token, tid, run.fullId).then(mapRunDetail),
+    (t, tid) => fetchRun(t, tid, run.fullId).then(mapRunDetail),
     {
       enabled: LIVE_STATUSES.has(run.status),
       staleTime: 0,
@@ -42,9 +44,24 @@ export function RunDetailView({ run }: RunDetailViewProps) {
     setModalKind(kind);
   }
 
-  function handleModalAction(action: "delete" | "rerun" | "restore") {
-    // In production: dispatch server action. For now, just close.
+  async function handleModalAction(action: "delete" | "rerun" | "restore") {
     setModalKind(null);
+    if (!token || !tenantId) return;
+    if (action === "rerun") {
+      try {
+        const newRun = await rerunRun(token, tenantId, run.fullId);
+        router.push(`/runs/${newRun.fullId}`);
+      } catch {
+        // non-fatal — user stays on current page
+      }
+    } else if (action === "delete") {
+      try {
+        await deleteRun(token, tenantId, run.fullId);
+        router.push("/runs");
+      } catch {
+        // non-fatal — user stays on current page
+      }
+    }
   }
 
   return (
