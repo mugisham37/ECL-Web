@@ -31,6 +31,7 @@ export function ComputeRing({ progress }: ComputeRingProps) {
           strokeWidth={STROKE_W}
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
+          initial={{ strokeDashoffset: CIRCUMFERENCE }}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 0.3, ease: "linear" }}
           transform="rotate(-90 48 48)"
