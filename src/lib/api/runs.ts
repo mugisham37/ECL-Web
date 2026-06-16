@@ -3,40 +3,40 @@ import { apiFetch, ApiError } from "./client";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-// ── Raw backend shapes (snake_case) ───────────────────────────────────────
+// ── Raw backend shapes (camelCase — matches RunListItemOut / RunDetailOut) ──
 
 export interface RunListItemRaw {
   id: string;
   fullId: string;
   name: string;
-  reporting_period?: string | null;
-  created_at: string;
-  created_by_initials?: string;
-  created_by_name?: string;
+  period: string;
+  createdAt: string;
+  byInitials: string;
+  byName: string;
   status: string;
-  total_ecl?: number | null;
-  coverage_ratio?: number | null;
-  currency?: string;
+  eclAmount: number | null;
+  coverage: string | null;
+  currency: string;
 }
 
 export interface RunInputFileRaw {
-  id: string;
-  kind: "PD" | "LGD" | "EAD";
-  filename: string;
-  size_bytes?: number;
-  sheet_count?: number;
-  row_count?: number;
-  sha256?: string;
-  validation_status?: string;
-  warning_count?: number;
+  type: "PD" | "LGD" | "EAD";
+  name: string;
+  size: string;
+  sheets: number;
+  validationStatus: "ok" | "warn" | "error";
+  warningCount?: number | null;
+  hash: string;
 }
 
 export interface AuditEventRaw {
   id: string;
-  event_type: string;
-  created_at: string;
-  user_name?: string | null;
-  details?: Record<string, unknown> | null;
+  kind: "ok" | "err" | "accent" | "default";
+  iconName: string;
+  title: string;
+  description: string;
+  who: string;
+  time: string;
 }
 
 export interface EngineProgressStageRaw {
@@ -53,37 +53,42 @@ export interface EngineProgressRaw {
   ecl: EngineProgressStageRaw;
 }
 
+export interface FailureDetailsRaw {
+  stage: string;
+  message: string;
+  ref: string;
+}
+
 export interface RunDetailRaw extends RunListItemRaw {
-  elapsed?: string;
+  elapsed?: string | null;
   kpis?: Array<{
     id: string;
     label: string;
-    help_text?: string;
-    currency_prefix?: string;
+    helpText?: string | null;
+    currencyPrefix?: string | null;
     value: string;
-    delta?: number;
-    delta_dir?: "up" | "down" | "flat";
-    sub_note?: string;
+    delta?: number | null;
+    deltaDir?: "up" | "down" | "flat" | null;
+    subNote?: string | null;
+    staleAsOf?: string | null;
   }>;
   segments?: Array<{ name: string; value: number }>;
-  input_files?: RunInputFileRaw[];
-  audit_events?: AuditEventRaw[];
-  engine_info?: {
-    version?: string;
-    released_date?: string;
-    pd_method?: string;
-    lgd_method?: string;
-    ead_method?: string;
-    pd_files_combined?: boolean;
-    deterministic?: boolean;
+  inputFiles?: RunInputFileRaw[];
+  auditEvents?: AuditEventRaw[];
+  engineInfo?: {
+    version: string;
+    releasedDate: string;
+    pdMethod: string;
+    lgdMethod: string;
+    eadMethod: string;
+    pdFilesCombined: boolean;
+    deterministic: boolean;
   };
-  engine_progress?: EngineProgressRaw | null;
-  failure_stage?: string | null;
-  failure_message?: string | null;
-  failure_ref?: string | null;
-  deleted_by?: string | null;
-  deleted_at?: string | null;
-  accepted_warnings?: number;
+  engineProgress?: EngineProgressRaw | null;
+  failureDetails?: FailureDetailsRaw | null;
+  deletedBy?: string | null;
+  deletedAt?: string | null;
+  acceptedWarnings?: number | null;
 }
 
 export interface ValidationIssueRaw {
@@ -101,15 +106,20 @@ export interface ValidationResultRaw {
   sub_summary?: string;
   issues: ValidationIssueRaw[];
   detected_segments?: string[];
+  blocking_count?: number;
+  warning_count?: number;
 }
 
 export interface UploadResultRaw {
   id: string;
   kind: "PD" | "LGD" | "EAD";
   filename: string;
-  size_bytes: number;
-  sheet_count: number;
+  size_bytes?: number;
+  sizeBytes?: number;
+  sheet_count?: number;
+  sheetCount?: number;
   row_count?: number;
+  rowCount?: number;
   sha256: string;
 }
 
@@ -143,7 +153,22 @@ export async function fetchRuns(
   if (params?.status && params.status !== "all") qs.set("status", params.status);
   if (params?.search) qs.set("search", params.search);
   const query = qs.toString() ? `?${qs.toString()}` : "";
-  return apiFetch<FetchRunsResult>(`/tenants/${tenantId}/runs${query}`, { token });
+  const res = await fetch(`${BASE_URL}/api/v1/tenants/${tenantId}/runs${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new ApiError(
+      body.code ?? "API_ERROR",
+      body.detail ?? "Request failed.",
+      res.status,
+    );
+  }
+  return {
+    items: (body.data ?? []) as RunListItemRaw[],
+    meta: body.meta ?? { page: 1, per_page: 50, total: 0 },
+  };
 }
 
 export async function fetchRun(
@@ -211,7 +236,7 @@ export async function validateRun(
 ): Promise<ValidationResultRaw> {
   return apiFetch<ValidationResultRaw>(
     `/tenants/${tenantId}/runs/${runId}/validate`,
-    { method: "POST", body: JSON.stringify(body), token },
+    { method: "POST", body: JSON.stringify(body), token, timeoutMs: 180_000 },
   );
 }
 

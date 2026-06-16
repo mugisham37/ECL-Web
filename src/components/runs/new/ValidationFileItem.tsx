@@ -12,21 +12,38 @@ interface ValidationFileItemProps {
 }
 
 export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploading }: ValidationFileItemProps) {
-  const [open, setOpen] = useState(result.issues.length > 0);
   const { file, issues } = result;
+  const blocking = issues.filter((issue) => issue.level === "block");
+  const warnings = issues.filter((issue) => issue.level === "warn");
   const hasIssues = issues.length > 0;
+  const hasBlocking = blocking.length > 0;
+  const [open, setOpen] = useState(hasIssues);
 
   const statusPill = !hasIssues ? (
     <span className="pill pill-success" style={{ height: 18 }}>Valid</span>
+  ) : hasBlocking ? (
+    <span className="pill pill-danger" style={{ height: 18 }}>
+      <AlertCircle size={11} />
+      {blocking.length} error{blocking.length !== 1 ? "s" : ""}
+      {warnings.length > 0 ? ` · ${warnings.length} warn` : ""}
+    </span>
   ) : (
     <span className="pill pill-warning" style={{ height: 18 }}>
       <AlertTriangle size={11} />
-      {issues.length} warning{issues.length !== 1 ? "s" : ""}
+      {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
     </span>
   );
 
-  const iconBg = !hasIssues ? "var(--success-subtle)" : "var(--warning-subtle)";
-  const iconColor = !hasIssues ? "var(--success)" : "var(--warning)";
+  const iconBg = !hasIssues
+    ? "var(--success-subtle)"
+    : hasBlocking
+      ? "var(--danger-subtle)"
+      : "var(--warning-subtle)";
+  const iconColor = !hasIssues
+    ? "var(--success)"
+    : hasBlocking
+      ? "var(--danger)"
+      : "var(--warning)";
 
   return (
     <div className={`val-file${open ? " open" : ""}`}>
@@ -61,11 +78,10 @@ export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploadin
         </div>
       </div>
 
-      {/* Expandable issue list */}
       {open && hasIssues && (
         <div className="vf-body">
-          {issues.map((issue, i) => (
-            <div key={i} className={`issue ${issue.level}`}>
+          {issues.map((issue) => (
+            <div key={issue.id} className={`issue ${issue.level}`}>
               {issue.level === "warn" ? (
                 <AlertTriangle size={14} className="iss-ic" />
               ) : (
@@ -73,8 +89,10 @@ export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploadin
               )}
               <div>
                 <div style={{ fontSize: "var(--fs-body)", color: "var(--text)" }}>{issue.title}</div>
-                <div className="iss-loc">{issue.location}</div>
-                <div className="iss-fix">{issue.fix}</div>
+                {issue.location && issue.location !== "—" && (
+                  <div className="iss-loc">{issue.location}</div>
+                )}
+                {issue.fix && <div className="iss-fix">{issue.fix}</div>}
               </div>
             </div>
           ))}

@@ -53,6 +53,13 @@ export interface ValidationResult {
   subSummary: string;
   fileResults: ValidationFileResult[];
   detectedSegments?: string[];
+  blockingCount?: number;
+  warningCount?: number;
+  requestError?: {
+    code?: string;
+    status?: number;
+    hint: string;
+  };
 }
 
 // ── Compute ────────────────────────────────────────────────────────────────

@@ -13,7 +13,15 @@ interface RunDetailHeaderProps {
   onOpenModal: (kind: NonNullable<ModalKind>) => void;
 }
 
-function ActionButtons({ status, onOpenModal }: { status: RunDetailStatus; onOpenModal: (k: NonNullable<ModalKind>) => void }) {
+function ActionButtons({
+  status,
+  runFullId,
+  onOpenModal,
+}: {
+  status: RunDetailStatus;
+  runFullId: string;
+  onOpenModal: (k: NonNullable<ModalKind>) => void;
+}) {
   const btnBase: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 6,
     height: "var(--control-h)", padding: "0 14px",
@@ -53,22 +61,42 @@ function ActionButtons({ status, onOpenModal }: { status: RunDetailStatus; onOpe
     );
   }
 
-  // complete
-  return (
-    <>
-      <button style={{ ...btnBase, background: "var(--surface)", color: "var(--text)" }}>
-        <Download size={14} />
-        Download
-      </button>
-      <button style={{ ...btnBase, background: "var(--accent)", color: "#fff", borderColor: "transparent" }}>
-        <BarChart3 size={14} />
-        View results
-      </button>
+  if (status === "success") {
+    return (
+      <>
+        <button style={{ ...btnBase, background: "var(--surface)", color: "var(--text)" }}>
+          <Download size={14} />
+          Download
+        </button>
+        <Link
+          href={`/results?run_id=${encodeURIComponent(runFullId)}`}
+          style={{
+            ...btnBase,
+            background: "var(--accent)",
+            color: "#fff",
+            borderColor: "transparent",
+            textDecoration: "none",
+          }}
+        >
+          <BarChart3 size={14} />
+          View results
+        </Link>
+        <button onClick={() => onOpenModal("more")} style={{ ...btnBase, background: "var(--surface)", color: "var(--text)", padding: "0 10px" }} aria-label="More actions">
+          <MoreVertical size={16} />
+        </button>
+      </>
+    );
+  }
+
+  if (status === "draft" || status === "queued") {
+    return (
       <button onClick={() => onOpenModal("more")} style={{ ...btnBase, background: "var(--surface)", color: "var(--text)", padding: "0 10px" }} aria-label="More actions">
         <MoreVertical size={16} />
       </button>
-    </>
-  );
+    );
+  }
+
+  return null;
 }
 
 export function RunDetailHeader({ run, onOpenModal }: RunDetailHeaderProps) {
@@ -155,7 +183,7 @@ export function RunDetailHeader({ run, onOpenModal }: RunDetailHeaderProps) {
         </div>
 
         <div className="detail-actions">
-          <ActionButtons status={run.status} onOpenModal={onOpenModal} />
+          <ActionButtons status={run.status} runFullId={run.fullId} onOpenModal={onOpenModal} />
         </div>
       </div>
     </div>

@@ -1,6 +1,12 @@
+"use client";
+
+import Link from "next/link";
 import { Zap, Upload, ChevronRight } from "lucide-react";
+import { useApiSession } from "@/hooks/use-api-session";
 
 export function EmptyState() {
+  const { role } = useApiSession();
+  const canCreateRun = role !== "reviewer";
   return (
     <div className="dash-empty">
       {/* Grid motif background */}
@@ -82,33 +88,37 @@ export function EmptyState() {
         </div>
 
         {/* CTA */}
-        <button
-          style={{
-            marginTop: 18,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            height: 44,
-            padding: "0 20px",
-            background: "var(--accent)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "var(--r-sm)",
-            fontFamily: "var(--font-ui)",
-            fontSize: "var(--fs-h3)",
-            fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
-            cursor: "pointer",
-            transition: "background var(--t-micro)",
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = "var(--accent-hover)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = "var(--accent)")
-          }
-        >
-          Start your first run
-        </button>
+        {canCreateRun && (
+          <Link
+            href="/runs/new"
+            style={{
+              marginTop: 18,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              height: 44,
+              padding: "0 20px",
+              background: "var(--accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "var(--r-sm)",
+              fontFamily: "var(--font-ui)",
+              fontSize: "var(--fs-h3)",
+              fontWeight: "var(--fw-medium)" as React.CSSProperties["fontWeight"],
+              cursor: "pointer",
+              transition: "background var(--t-micro)",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)")
+            }
+          >
+            Start your first run
+          </Link>
+        )}
 
         <a
           href="#"

@@ -15,9 +15,10 @@ const MAX_POLL_FAILURES = 5;
 export function ComputeStep() {
   const { state, dispatch } = useRunWizard();
   const { token, tenantId } = useApiSession();
-  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startedRef = useRef(false);
+  const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const executeOnceRef  = useRef(false);
+  const pollSetupRef    = useRef(false);
 
   function clearTimers() {
     if (pollRef.current)    clearInterval(pollRef.current);
@@ -31,20 +32,26 @@ export function ComputeStep() {
   }
 
   useEffect(() => {
-    if (startedRef.current || !state.runId || !token || !tenantId) return;
-    startedRef.current = true;
+    if (!state.runId || !token || !tenantId) return;
 
     dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 0 });
 
-    // Kick off the engine — surface any error immediately
-    executeRun(token, tenantId, state.runId).catch((err: unknown) => {
-      goToFailure(
-        "execute",
-        err instanceof Error
-          ? err.message
-          : "Failed to start computation. Check that all three files are uploaded and validated.",
-      );
-    });
+    // Fire execute once per ComputeStep mount (Strict Mode remount must not double-dispatch).
+    if (!executeOnceRef.current) {
+      executeOnceRef.current = true;
+      executeRun(token, tenantId, state.runId).catch((err: unknown) => {
+        goToFailure(
+          "execute",
+          err instanceof Error
+            ? err.message
+            : "Failed to start computation. Check that all three files are uploaded and validated.",
+        );
+      });
+    }
+
+    // Polling may restart after Strict Mode remount; execute must not.
+    if (pollSetupRef.current) return;
+    pollSetupRef.current = true;
 
     // Absolute timeout — if nothing finishes in 8 min, tell the user
     timeoutRef.current = setTimeout(() => {
@@ -54,16 +61,15 @@ export function ComputeStep() {
       );
     }, COMPUTE_TIMEOUT_MS);
 
-    // Poll for status
     let failedPolls = 0;
 
-    pollRef.current = setInterval(async () => {
+    async function pollRunStatus() {
       if (!state.runId || !token || !tenantId) return;
       try {
         const raw = await fetchRun(token, tenantId, state.runId);
         failedPolls = 0;
 
-        const stages = mapEngineProgress(raw.engine_progress ?? null);
+        const stages = mapEngineProgress(raw.engineProgress ?? null);
         dispatch({ type: "SET_COMPUTE_STAGES", stages });
 
         const doneCount   = stages.filter((s) => s.status === "done").length;
@@ -71,7 +77,7 @@ export function ComputeStep() {
         const pct = Math.min(99, Math.round(((doneCount + activeCount * 0.5) / stages.length) * 100));
         dispatch({ type: "SET_COMPUTE_PROGRESS", pct });
 
-        if (raw.status === "complete") {
+        if (raw.status === "success") {
           clearTimers();
           dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 100 });
           const item = mapRunListItem(raw);
@@ -91,9 +97,9 @@ export function ComputeStep() {
           dispatch({
             type: "SET_FAILURE",
             details: {
-              stage: raw.failure_stage ?? "unknown",
-              message: raw.failure_message ?? "An unexpected error occurred.",
-              ref: raw.failure_ref ?? "—",
+              stage: raw.failureDetails?.stage ?? "unknown",
+              message: raw.failureDetails?.message ?? "An unexpected error occurred.",
+              ref: raw.failureDetails?.ref ?? "—",
             },
           });
           setTimeout(() => dispatch({ type: "GO_TO_STEP", step: "failure" }), 300);
@@ -104,9 +110,16 @@ export function ComputeStep() {
           goToFailure("polling", "Lost connection while monitoring compute progress. Check your network.");
         }
       }
-    }, POLL_INTERVAL_MS);
+    }
 
-    return () => clearTimers();
+    // Poll immediately, then every 2s
+    void pollRunStatus();
+    pollRef.current = setInterval(() => void pollRunStatus(), POLL_INTERVAL_MS);
+
+    return () => {
+      clearTimers();
+      pollSetupRef.current = false;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -4,6 +4,7 @@ import { apiFetch } from "./client";
 
 export interface SegmentDataRaw {
   name: string;
+  mix?: [number, number, number];
   stage1_pct?: number;
   stage2_pct?: number;
   stage3_pct?: number;
@@ -14,13 +15,23 @@ export interface SegmentDataRaw {
   delta?: number;
 }
 
+export interface RunContextRaw {
+  runId: string;
+  period: string;
+  computedAt: string;
+  engineVersion: string;
+  currency: string;
+}
+
 export interface PortfolioRaw {
+  runContext?: RunContextRaw;
   segments: SegmentDataRaw[];
-  run_id?: string;
-  period?: string;
-  computed_at?: string;
-  engine_version?: string;
-  currency?: string;
+  totals?: {
+    ecl: number;
+    outstanding: number;
+    loans: number;
+    coverage: string;
+  };
 }
 
 export interface LoanRowRaw {
@@ -51,6 +62,7 @@ export interface LoanDetailRaw extends LoanRowRaw {
 
 export interface SegmentViewRaw {
   name: string;
+  pdMatrix?: [[number, number, number], [number, number, number], [number, number, number]];
   pd_matrix?: [[number, number, number], [number, number, number], [number, number, number]];
   loans: LoanRowRaw[];
   total: number;

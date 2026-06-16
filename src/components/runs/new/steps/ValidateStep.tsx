@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Info, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ValidationSummary } from "../ValidationSummary";
@@ -9,48 +9,80 @@ import { useRunWizard } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
 import { validateRun, uploadRunFile, deleteUpload } from "@/lib/api/runs";
 import { mapValidationResult } from "@/lib/api/mappers";
-import type { ValidationFileResult } from "@/lib/new-run-types";
+import { formatApiError } from "@/lib/api/format-api-error";
+import type { UploadedFile, ValidationFileResult } from "@/lib/new-run-types";
+
+function collectUploadedFiles(state: {
+  pdFiles: UploadedFile[];
+  lgdFile: UploadedFile | null;
+  eadFile: UploadedFile | null;
+}) {
+  return [
+    ...state.pdFiles,
+    ...(state.lgdFile ? [state.lgdFile] : []),
+    ...(state.eadFile ? [state.eadFile] : []),
+  ];
+}
 
 export function ValidateStep() {
   const { state, dispatch } = useRunWizard();
   const { token, tenantId } = useApiSession();
   const [reuploadingId, setReuploadingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (state.isValidating || state.validationResult || !state.runId || !token || !tenantId) return;
+  const runValidation = useCallback(async () => {
+    if (!state.runId || !token || !tenantId) return;
 
     dispatch({ type: "START_VALIDATING" });
 
-    const uploadedFiles = [
-      ...state.pdFiles,
-      ...(state.lgdFile ? [state.lgdFile] : []),
-      ...(state.eadFile ? [state.eadFile] : []),
-    ];
+    const uploadedFiles = collectUploadedFiles(state);
 
-    validateRun(token, tenantId, state.runId, {
-      accepted_warning_ids: state.acceptedWarningIds,
-    })
-      .then((raw) => {
-        const result = mapValidationResult(raw, uploadedFiles);
-        dispatch({ type: "SET_VALIDATION_RESULT", result });
-      })
-      .catch((err: unknown) => {
-        const subSummary =
-          err instanceof Error
-            ? err.message
-            : "Could not connect to the server. Check your connection and try again.";
-        dispatch({
-          type: "SET_VALIDATION_RESULT",
-          result: {
-            status: "blocking",
-            summary: "Validation failed",
-            subSummary,
-            fileResults: [],
-          },
-        });
+    try {
+      const raw = await validateRun(token, tenantId, state.runId, {
+        accepted_warning_ids: state.acceptedWarningIds,
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.validationResult, state.isValidating, state.runId]);
+      const result = mapValidationResult(raw, uploadedFiles);
+      dispatch({ type: "SET_VALIDATION_RESULT", result });
+    } catch (err: unknown) {
+      const formatted = formatApiError(err);
+      dispatch({
+        type: "SET_VALIDATION_RESULT",
+        result: {
+          status: "blocking",
+          summary: formatted.summary,
+          subSummary: formatted.subSummary,
+          fileResults: [],
+          requestError: {
+            code: formatted.code,
+            status: formatted.status,
+            hint: formatted.hint,
+          },
+        },
+      });
+    }
+  }, [
+    dispatch,
+    state.acceptedWarningIds,
+    state.eadFile,
+    state.lgdFile,
+    state.pdFiles,
+    state.runId,
+    tenantId,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (state.isValidating || state.validationResult || !state.runId || !token || !tenantId) {
+      return;
+    }
+    void runValidation();
+  }, [
+    runValidation,
+    state.isValidating,
+    state.validationResult,
+    state.runId,
+    token,
+    tenantId,
+  ]);
 
   async function handleReupload(fileResult: ValidationFileResult, newFile: File) {
     const { file } = fileResult;
@@ -77,6 +109,9 @@ export function ValidateStep() {
     }
   }
 
+  const uploadedFiles = collectUploadedFiles(state);
+  const showRequestRetry = !!state.validationResult?.requestError;
+
   return (
     <div>
       <AnimatePresence mode="wait">
@@ -98,7 +133,7 @@ export function ValidateStep() {
                   <div style={{ fontWeight: "var(--fw-semibold)" as React.CSSProperties["fontWeight"], color: "var(--text)", fontSize: "var(--fs-body)" }}>
                     Validating your files…
                   </div>
-                  <div className="rc-sub">Checking columns, types and reference values.</div>
+                  <div className="rc-sub">Checking columns, types and reference values. Large files may take up to a minute.</div>
                 </div>
               </div>
               <div className="progress indeterminate" style={{ marginTop: 16 }}>
@@ -125,6 +160,18 @@ export function ValidateStep() {
               />
             ))}
 
+            {showRequestRetry && uploadedFiles.length > 0 && (
+              <div className="val-uploaded-list">
+                <p className="val-uploaded-title">Files submitted for validation</p>
+                {uploadedFiles.map((file) => (
+                  <div key={file.id} className="val-uploaded-row">
+                    <span className="val-uploaded-kind">{file.type}</span>
+                    <span className="val-uploaded-name">{file.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {state.validationResult.status === "warn" && (
               <div className="callout callout-info" style={{ marginTop: "var(--sp-4)" }}>
                 <Info size={15} className="ic" aria-hidden="true" />
@@ -134,7 +181,9 @@ export function ValidateStep() {
               </div>
             )}
 
-            {state.validationResult.status === "blocking" && state.validationResult.fileResults.length === 0 && (
+            {(showRequestRetry ||
+              (state.validationResult.status === "blocking" &&
+                state.validationResult.fileResults.length === 0)) && (
               <div style={{ marginTop: "var(--sp-4)", display: "flex", justifyContent: "flex-end" }}>
                 <button
                   type="button"

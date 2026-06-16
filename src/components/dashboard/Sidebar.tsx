@@ -14,9 +14,8 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
       style={{
         width: isCollapsed ? "var(--side-w-collapsed)" : "var(--side-w)",
         transition: "width var(--t-base) var(--ease-out)",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
+        height: "100%",
+        minHeight: 0,
         overflowX: "hidden",
         overflowY: "auto",
         background: "var(--surface)",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ResultsHeader } from "./ResultsHeader";
 import { ResultsBreadcrumb } from "./ResultsBreadcrumb";
@@ -12,14 +13,18 @@ import { ResultsEmptyState } from "./shared/ResultsEmptyState";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { useApiSession } from "@/hooks/use-api-session";
 import { fetchPortfolio, fetchSegmentResults, fetchLoanResults } from "@/lib/api/results";
+import { fetchRuns, fetchRun } from "@/lib/api/runs";
 import {
   mapPortfolio,
   mapLoanDetail,
   mapLoanRow,
   mapPdMatrix,
+  mapRunListItem,
+  mapRunDetail,
 } from "@/lib/api/mappers";
 import { defaultFilter } from "@/lib/results-types";
 import type { DrillLevel, ExplorerFilter, RunContext } from "@/lib/results-types";
+import { ResultsUnavailable } from "./shared/ResultsUnavailable";
 
 const FADE_VARIANTS = {
   hidden:  { opacity: 0, y: 4  },
@@ -40,6 +45,7 @@ interface ResultsExplorerProps {
 }
 
 export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
+  const router = useRouter();
   const { tenantId } = useApiSession();
   const [level,   setLevel]   = useState<DrillLevel>("portfolio");
   const [curSeg,  setCurSeg]  = useState("");
@@ -47,6 +53,25 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   const [filter,  setFilter]  = useState<ExplorerFilter>(defaultFilter);
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [runId,   setRunId]   = useState(initialRunId ?? "");
+
+  const runsQuery = useAuthedQuery(
+    ["runs", tenantId, "results-switcher"],
+    (token, tid) => fetchRuns(token, tid, { per_page: 50 }),
+    { staleTime: 30_000 },
+  );
+
+  const runs = useMemo(
+    () => (runsQuery.data?.items ?? []).map(mapRunListItem),
+    [runsQuery.data?.items],
+  );
+
+  const runDetailQuery = useAuthedQuery(
+    ["run-detail-results", tenantId, runId],
+    (token, tid) => fetchRun(token, tid, runId).then(mapRunDetail),
+    { enabled: !!runId, staleTime: 30_000 },
+  );
+
+  const runDetail = runDetailQuery.data ?? null;
 
   // Portfolio query
   const portfolioQuery = useAuthedQuery(
@@ -74,6 +99,32 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   useEffect(() => {
     wrapRef.current?.setAttribute("data-density", density);
   }, [density]);
+
+  // Resolve full run id once portfolio or runs list is available.
+  useEffect(() => {
+    if (runId) return;
+    if (initialRunId) {
+      setRunId(initialRunId);
+      return;
+    }
+    const shortId = portfolioQuery.data
+      ? mapPortfolio(portfolioQuery.data).context.runId
+      : undefined;
+    if (!shortId || runs.length === 0) return;
+    const match = runs.find((r) => r.id === shortId);
+    if (match) setRunId(match.fullId);
+  }, [runId, initialRunId, portfolioQuery.data, runs]);
+
+  function handleRunSelect(fullId: string) {
+    if (fullId === runId) return;
+    setRunId(fullId);
+    setLevel("portfolio");
+    setCurSeg("");
+    setCurLoan("");
+    setFilter(defaultFilter);
+    router.replace(`/results?run_id=${encodeURIComponent(fullId)}`, { scroll: false });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function drill(lvl: DrillLevel) {
     setLevel(lvl);
@@ -108,21 +159,25 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   const partialContext = portfolioResult?.context ?? {};
 
   const runContext: RunContext = {
-    runId: partialContext.runId ?? runId,
-    period: partialContext.period ?? "—",
-    computedAt: partialContext.computedAt ?? "—",
-    engineVersion: partialContext.engineVersion ?? "—",
-    currency: partialContext.currency ?? "KES",
+    runId: partialContext.runId ?? runDetail?.id ?? runId,
+    period: partialContext.period ?? runDetail?.period ?? "—",
+    computedAt: partialContext.computedAt ?? runDetail?.createdAt ?? "—",
+    engineVersion:
+      partialContext.engineVersion ?? runDetail?.engineInfo?.version ?? "—",
+    currency: partialContext.currency ?? runDetail?.currency ?? "KES",
   };
 
-  const displayContext = portfolioQuery.data ? runContext : EMPTY_CONTEXT;
+  const displayContext =
+    portfolioQuery.data || runDetail ? runContext : EMPTY_CONTEXT;
   const currency = displayContext.currency;
 
   const segmentLoans = segmentQuery.data
     ? (segmentQuery.data.loans ?? []).map(mapLoanRow)
     : [];
 
-  const segmentPdMatrix = mapPdMatrix(segmentQuery.data?.pd_matrix);
+  const segmentPdMatrix = mapPdMatrix(
+    segmentQuery.data?.pdMatrix ?? segmentQuery.data?.pd_matrix,
+  );
 
   const currentSeg = portfolioSegments.find((s) => s.name === curSeg) ?? portfolioSegments[0];
 
@@ -144,6 +199,12 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   const isPortfolioLoading = portfolioQuery.isLoading;
   const isSegmentLoading = segmentQuery.isLoading;
   const isLoanLoading = loanQuery.isLoading;
+  const portfolioUnavailable =
+    portfolioQuery.isError ||
+    (!isPortfolioLoading &&
+      !portfolioQuery.isError &&
+      portfolioSegments.length === 0 &&
+      level === "portfolio");
 
   return (
     <div ref={wrapRef} data-density={density}>
@@ -155,10 +216,14 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
         {/* Run context header */}
         <ResultsHeader
           runContext={displayContext}
+          runs={runs}
+          currentRunFullId={runId}
+          runsLoading={runsQuery.isLoading}
           density={density}
           onDensityToggle={() =>
             setDensity((d) => (d === "compact" ? "comfortable" : "compact"))
           }
+          onRunSelect={handleRunSelect}
         />
 
         {/* Breadcrumb */}
@@ -170,17 +235,37 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
         />
 
         {/* Filter toolbar */}
-        <ResultsToolbar
-          filter={filter}
-          rowSummary={rowSummary}
-          hidden={!showToolbar}
-          onChange={handleFilterChange}
-          onClearFilters={clearFilters}
-        />
+        {showToolbar && !portfolioUnavailable && (
+          <ResultsToolbar
+            filter={filter}
+            rowSummary={rowSummary}
+            hidden={false}
+            onChange={handleFilterChange}
+            onClearFilters={clearFilters}
+          />
+        )}
 
         {/* View switcher with animated transitions */}
         <AnimatePresence mode="wait">
-          {level === "portfolio" && (
+          {level === "portfolio" && portfolioUnavailable && (
+            <motion.div
+              key="unavailable"
+              variants={FADE_VARIANTS}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ResultsUnavailable
+                error={portfolioQuery.error}
+                runId={runId}
+                run={runDetail}
+                isLoading={isPortfolioLoading || (!!runId && runDetailQuery.isLoading)}
+              />
+            </motion.div>
+          )}
+
+          {level === "portfolio" && !portfolioUnavailable && (
             <motion.div
               key="portfolio"
               variants={FADE_VARIANTS}

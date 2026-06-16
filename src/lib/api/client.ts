@@ -1,7 +1,13 @@
-const BASE_URL =
-  process.env.BACKEND_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8000";
+function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  }
+  return (
+    process.env.BACKEND_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:8000"
+  );
+}
 
 export class ApiError extends Error {
   constructor(
@@ -26,7 +32,7 @@ let refreshQueue: Array<(token: string | null) => void> = [];
 
 async function refreshAccessToken(): Promise<string | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
       method: "POST",
       credentials: "include",
     });
@@ -47,9 +53,9 @@ function drainQueue(token: string | null) {
 
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { token?: string } = {},
+  options: RequestInit & { token?: string; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { token, headers: extraHeaders, ...rest } = options;
+  const { token, headers: extraHeaders, timeoutMs, ...rest } = options;
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
   };
@@ -60,11 +66,39 @@ export async function apiFetch<T>(
     headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1${path}`, {
-    ...rest,
-    headers,
-    credentials: "include",
-  });
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeoutId =
+    controller && timeoutMs
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
+      ...rest,
+      headers,
+      credentials: "include",
+      signal: controller?.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(
+        "TIMEOUT",
+        "The request timed out. Large files can take a while — try again.",
+        408,
+      );
+    }
+    if (err instanceof TypeError) {
+      throw new ApiError(
+        "NETWORK_ERROR",
+        "Could not reach the API server. Check that ECL-Server is running on port 8000.",
+        0,
+      );
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   // ── 401 refresh (client-side only) ──────────────────────────────────────
   if (res.status === 401 && typeof window !== "undefined") {
@@ -82,10 +116,11 @@ export async function apiFetch<T>(
 
       // Retry once with the new token
       const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
-      const retryRes = await fetch(`${BASE_URL}/api/v1${path}`, {
+      const retryRes = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
         ...rest,
         headers: retryHeaders,
         credentials: "include",
+        signal: controller?.signal,
       });
       if (retryRes.status === 204) return undefined as T;
       const retryBody = await retryRes.json().catch(() => ({}));
@@ -109,10 +144,11 @@ export async function apiFetch<T>(
         throw new ApiError("UNAUTHORIZED", "Session expired.", 401);
       }
       const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
-      const retryRes = await fetch(`${BASE_URL}/api/v1${path}`, {
+      const retryRes = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
         ...rest,
         headers: retryHeaders,
         credentials: "include",
+        signal: controller?.signal,
       });
       if (retryRes.status === 204) return undefined as T;
       const retryBody = await retryRes.json().catch(() => ({}));

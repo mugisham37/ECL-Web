@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useState } from "react";
 import { Upload, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { UploadFilePill } from "./shared/UploadFilePill";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
+
+function isExcelFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".xlsx") || name.endsWith(".xls");
+}
 
 const ZONE_META: Record<FileInputType, { title: string; sub: string; multi: boolean; sizeHint: string }> = {
   PD:  { title: "Probability of Default", sub: "Monthly loan listings — multiple files are combined",           multi: true,  sizeHint: "Up to 10 files · 25 MB each" },
@@ -18,54 +23,45 @@ interface UploadZoneProps {
   onAdd: (file: File) => void;
   onRemove: (id: string) => void;
   onDownloadTemplate?: () => void;
-  disabled?: boolean;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, disabled }: UploadZoneProps) {
+export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   const meta = ZONE_META[type];
   const isReplace = !meta.multi && files.length > 0;
 
-  function openPicker() {
-    if (disabled) return;
-    inputRef.current?.click();
+  function addFiles(picked: File[]) {
+    const excelFiles = picked.filter(isExcelFile);
+    if (meta.multi) {
+      excelFiles.forEach(onAdd);
+    } else if (excelFiles.length > 0) {
+      onAdd(excelFiles[0]);
+    }
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    if (disabled) return;
-    const picked = Array.from(e.target.files ?? []);
-    picked.forEach(onAdd);
+    addFiles(Array.from(e.target.files ?? []));
     // Reset so the same file can be re-selected after removal
-    if (inputRef.current) inputRef.current.value = "";
+    e.target.value = "";
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragOver(false);
-    if (disabled) return;
-    const dropped = Array.from(e.dataTransfer.files).filter((f) =>
-      f.name.endsWith(".xlsx") || f.name.endsWith(".xls"),
-    );
-    if (meta.multi) {
-      dropped.forEach(onAdd);
-    } else if (dropped.length > 0) {
-      onAdd(dropped[0]);
-    }
+    addFiles(Array.from(e.dataTransfer.files));
   }
 
   return (
     <div className="upload-zone">
-      {/* Hidden file input */}
+      {/* Hidden file input — linked to drop zone label for reliable browse */}
       <input
-        ref={inputRef}
+        id={inputId}
         type="file"
-        accept=".xlsx,.xls"
+        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         multiple={meta.multi}
-        disabled={disabled}
-        style={{ display: "none" }}
+        className="sr-only"
         onChange={handleFileInput}
-        aria-hidden="true"
         tabIndex={-1}
       />
 
@@ -111,45 +107,32 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, d
 
       {/* Zone body */}
       <div className="uz-body">
-        <div
-          className={`dz${isDragOver && !disabled ? " over" : ""}${disabled ? " disabled" : ""}`}
-          role="button"
-          tabIndex={disabled ? -1 : 0}
-          onClick={openPicker}
-          onDragOver={(e) => { e.preventDefault(); if (!disabled) setIsDragOver(true); }}
+        <label
+          htmlFor={inputId}
+          className={`dz${isDragOver ? " over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          onKeyDown={(e) => e.key === "Enter" && openPicker()}
           aria-label={`Upload ${type} file${meta.multi ? "s" : ""}`}
-          aria-disabled={disabled}
-          style={disabled ? { opacity: 0.5, cursor: "default", pointerEvents: "none" } : undefined}
         >
           <Upload size={26} className="dz-ic" aria-hidden="true" />
           <div style={{ fontSize: "var(--fs-body)", color: "var(--text-muted)" }}>
             <strong style={{ color: "var(--text)" }}>
-              {disabled
-                ? "Preparing run…"
-                : isReplace
+              {isReplace
                 ? "Drop to replace"
                 : meta.multi
                 ? "Drop .xlsx files"
                 : "Drop one .xlsx file"}
             </strong>{" "}
-            {!disabled && (
-              <>
-                or{" "}
-                <span className="link-accent">browse</span>
-              </>
-            )}
+            or{" "}
+            <span className="link-accent">browse</span>
           </div>
           <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-subtle)" }}>
-            {disabled
-              ? "Almost ready"
-              : isReplace
+            {isReplace
               ? "Drop a new file to replace the current one"
               : meta.sizeHint}
           </span>
-        </div>
+        </label>
 
         {/* Uploaded files */}
         <div className="uz-files">

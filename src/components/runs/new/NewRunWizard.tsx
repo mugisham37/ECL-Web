@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { RunWizardProvider, useRunWizard, canContinueFrom, isUploadReady } from "./RunWizardContext";
@@ -17,7 +16,7 @@ import { FailureTerminal } from "./steps/FailureTerminal";
 import { stepIndex } from "@/lib/new-run-types";
 import type { NewRunStep } from "@/lib/new-run-types";
 import { useApiSession } from "@/hooks/use-api-session";
-import { createRun, deleteRun } from "@/lib/api/runs";
+import { deleteRun } from "@/lib/api/runs";
 
 // ── Step component map ─────────────────────────────────────────────────────
 
@@ -43,22 +42,9 @@ const slideVariants = {
 function WizardInner() {
   const { state, dispatch } = useRunWizard();
   const router = useRouter();
-  const { token, tenantId, isAuthenticated } = useApiSession();
+  const { token, tenantId } = useApiSession();
 
   const { step, prevStep, cancelModalOpen, runName } = state;
-
-  // Create a draft run on mount so uploads have a run ID to attach to
-  useEffect(() => {
-    if (!isAuthenticated || !token || !tenantId) return;
-    dispatch({ type: "SET_RUN_INIT_ERROR", error: null });
-    createRun(token, tenantId, { name: runName })
-      .then((raw) => dispatch({ type: "SET_RUN_ID", runId: raw.fullId }))
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : "Failed to start a new run. Check your connection and try again.";
-        dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
 
   const isTerminal = step === "success" || step === "failure";
   const isCompute  = step === "compute";
@@ -149,9 +135,20 @@ function WizardInner() {
 
 // ── Public export — wraps inner with the state provider ───────────────────
 
-export function NewRunWizard() {
+interface NewRunWizardProps {
+  initialRunId?: string | null;
+  initialRunInitError?: string | null;
+}
+
+export function NewRunWizard({
+  initialRunId = null,
+  initialRunInitError = null,
+}: NewRunWizardProps) {
   return (
-    <RunWizardProvider>
+    <RunWizardProvider
+      initialRunId={initialRunId}
+      initialRunInitError={initialRunInitError}
+    >
       <WizardInner />
     </RunWizardProvider>
   );

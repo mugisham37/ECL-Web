@@ -134,8 +134,20 @@ interface RunWizardContextValue {
 
 const RunWizardContext = createContext<RunWizardContextValue | null>(null);
 
-export function RunWizardProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+export function RunWizardProvider({
+  children,
+  initialRunId = null,
+  initialRunInitError = null,
+}: {
+  children: React.ReactNode;
+  initialRunId?: string | null;
+  initialRunInitError?: string | null;
+}) {
+  const [state, dispatch] = useReducer(reducer, {
+    ...initialState,
+    runId: initialRunId,
+    runInitError: initialRunInitError,
+  });
   return (
     <RunWizardContext.Provider value={{ state, dispatch }}>
       {children}

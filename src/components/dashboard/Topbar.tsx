@@ -54,7 +54,7 @@ export function Topbar({
         borderBottom: "1px solid var(--border)",
         position: "sticky",
         top: 0,
-        zIndex: 30,
+        zIndex: 35,
         height: "var(--topbar-h)",
       }}
     >

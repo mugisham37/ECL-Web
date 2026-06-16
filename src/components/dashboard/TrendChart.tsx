@@ -125,7 +125,7 @@ export function TrendChart({ data, dimmed = false }: TrendChartProps) {
             {/* Month labels */}
             {sliced.map((pt, i) => (
               <text
-                key={pt.label}
+                key={`trend-label-${i}`}
                 x={(PAD + (i / (sliced.length - 1)) * (W - PAD * 2)).toFixed(1)}
                 y={H - 8}
                 textAnchor="middle"

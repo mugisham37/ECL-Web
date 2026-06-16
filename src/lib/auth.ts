@@ -14,12 +14,12 @@ function buildUserFromAuthData(data: {
     email: user.email as string,
     name: user.name as string,
     accessToken: access_token,
-    tenantId: user.tenant_id as string,
-    tenantName: user.tenant_name as string,
+    tenantId: (user.tenant_id ?? user.tenantId) as string,
+    tenantName: (user.tenant_name ?? user.tenantName) as string,
     role: user.role as string,
-    isEmailVerified: user.is_email_verified as boolean,
-    isOnboardingComplete: user.is_onboarding_complete as boolean,
-    isPlatformAdmin: (user.is_platform_admin as boolean) ?? false,
+    isEmailVerified: (user.is_email_verified ?? user.isEmailVerified) as boolean,
+    isOnboardingComplete: (user.is_onboarding_complete ?? user.isOnboardingComplete) as boolean,
+    isPlatformAdmin: (user.is_platform_admin ?? user.isPlatformAdmin ?? false) as boolean,
   };
 }
 

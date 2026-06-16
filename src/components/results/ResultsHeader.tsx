@@ -1,16 +1,30 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { ChevronDown, Download, Minimize2, Maximize2 } from "lucide-react";
 import type { RunContext } from "@/lib/results-types";
+import type { RunListItem } from "@/lib/runs-types";
+import { RunSwitcher } from "./RunSwitcher";
 
 interface ResultsHeaderProps {
   runContext: RunContext;
+  runs: RunListItem[];
+  currentRunFullId: string;
+  runsLoading?: boolean;
   density: "compact" | "comfortable";
   onDensityToggle: () => void;
+  onRunSelect: (fullId: string) => void;
 }
 
-export function ResultsHeader({ runContext, density, onDensityToggle }: ResultsHeaderProps) {
+export function ResultsHeader({
+  runContext,
+  runs,
+  currentRunFullId,
+  runsLoading,
+  density,
+  onDensityToggle,
+  onRunSelect,
+}: ResultsHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -29,11 +43,14 @@ export function ResultsHeader({ runContext, density, onDensityToggle }: ResultsH
       <div>
         <div className="rx-context">
           <h1>Results</h1>
-          <button className="run-switch" aria-label="Switch run">
-            <span>Run</span>
-            <span className="mono">{runContext.period} · {runContext.runId}</span>
-            <ChevronDown size={13} aria-hidden />
-          </button>
+          <RunSwitcher
+            runs={runs}
+            currentRunFullId={currentRunFullId}
+            currentPeriod={runContext.period}
+            currentRunId={runContext.runId}
+            isLoading={runsLoading}
+            onSelect={onRunSelect}
+          />
         </div>
         <div
           style={{

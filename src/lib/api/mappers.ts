@@ -480,33 +480,31 @@ function formatRunDate(iso: string): string {
 
 export function mapRunListItem(raw: RunListItemRaw): RunListItem {
   const status: RunDetailStatus = RUN_STATUS_MAP[raw.status] ?? "draft";
-  const fullId = raw.id;
-  const shortId = fullId.length > 8 ? fullId.slice(0, 4) + "…" + fullId.slice(-4) : fullId;
 
   return {
-    id: shortId,
-    fullId,
-    name: raw.name ?? raw.reporting_period ?? "Unnamed Run",
-    period: raw.reporting_period ?? "—",
-    createdAt: raw.created_at ? formatRunDate(raw.created_at) : "—",
-    byInitials: raw.created_by_initials ?? "?",
-    byName: raw.created_by_name ?? "Unknown",
+    id: raw.id,
+    fullId: raw.fullId,
+    name: raw.name ?? "Unnamed Run",
+    period: raw.period ?? "—",
+    createdAt: raw.createdAt ?? "—",
+    byInitials: raw.byInitials ?? "?",
+    byName: raw.byName ?? "Unknown",
     status,
-    eclAmount: raw.total_ecl ?? null,
-    coverage: raw.coverage_ratio != null ? `${Number(raw.coverage_ratio).toFixed(2)}%` : null,
+    eclAmount: raw.eclAmount ?? null,
+    coverage: raw.coverage ?? null,
     currency: raw.currency ?? "USD",
   };
 }
 
 function mapInputFile(raw: RunInputFileRaw): RunInputFile {
   return {
-    type: raw.kind,
-    name: raw.filename,
-    size: formatFileSize(raw.size_bytes),
-    sheets: raw.sheet_count ?? 0,
-    validationStatus: (raw.validation_status as RunInputFile["validationStatus"]) ?? "ok",
-    warningCount: raw.warning_count,
-    hash: truncateHash(raw.sha256),
+    type: raw.type,
+    name: raw.name,
+    size: raw.size,
+    sheets: raw.sheets,
+    validationStatus: raw.validationStatus,
+    warningCount: raw.warningCount ?? undefined,
+    hash: raw.hash,
   };
 }
 
@@ -520,32 +518,15 @@ const RUN_AUDIT_META: Record<string, { kind: AuditEvent["kind"]; icon: string }>
   RUN_DELETED: { kind: "err", icon: "Trash2" },
 };
 
-function mapAuditEvent(raw: AuditEventRaw, idx: number): AuditEvent {
-  const meta = RUN_AUDIT_META[raw.event_type] ?? { kind: "default" as const, icon: "Activity" };
-  const details = raw.details ?? {};
-  const description =
-    typeof details.description === "string"
-      ? details.description
-      : Object.entries(details)
-          .filter(([k]) => k !== "description")
-          .map(([, v]) => String(v))
-          .join(" · ") || raw.event_type.replace(/_/g, " ").toLowerCase();
-
-  const dt = new Date(raw.created_at);
-  const time = dt.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
+function mapAuditEvent(raw: AuditEventRaw): AuditEvent {
   return {
-    id: raw.id ?? String(idx),
-    kind: meta.kind,
-    iconName: meta.icon,
-    title: raw.event_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    description,
-    who: raw.user_name ?? "system",
-    time,
+    id: raw.id,
+    kind: raw.kind,
+    iconName: raw.iconName,
+    title: raw.title,
+    description: raw.description,
+    who: raw.who,
+    time: raw.time,
   };
 }
 
@@ -555,12 +536,12 @@ export function mapRunDetail(raw: RunDetailRaw): RunDetail {
   const kpis: KpiData[] = (raw.kpis ?? []).map((k) => ({
     id: k.id,
     label: k.label,
-    helpText: k.help_text,
-    currencyPrefix: k.currency_prefix,
+    helpText: k.helpText ?? undefined,
+    currencyPrefix: k.currencyPrefix ?? undefined,
     value: k.value,
-    delta: k.delta,
-    deltaDir: k.delta_dir,
-    subNote: k.sub_note,
+    delta: k.delta ?? undefined,
+    deltaDir: k.deltaDir ?? undefined,
+    subNote: k.subNote ?? undefined,
   }));
 
   const segments: SegmentBar[] = (raw.segments ?? []).map((s) => ({
@@ -568,39 +549,39 @@ export function mapRunDetail(raw: RunDetailRaw): RunDetail {
     value: s.value,
   }));
 
-  const inputFiles: RunInputFile[] = (raw.input_files ?? []).map(mapInputFile);
-  const auditEvents: AuditEvent[] = (raw.audit_events ?? []).map(mapAuditEvent);
+  const inputFiles: RunInputFile[] = (raw.inputFiles ?? []).map(mapInputFile);
+  const auditEvents: AuditEvent[] = (raw.auditEvents ?? []).map(mapAuditEvent);
 
   const engineInfo: EngineInfo = {
-    version: raw.engine_info?.version ?? "—",
-    releasedDate: raw.engine_info?.released_date ?? "—",
-    pdMethod: raw.engine_info?.pd_method ?? "—",
-    lgdMethod: raw.engine_info?.lgd_method ?? "—",
-    eadMethod: raw.engine_info?.ead_method ?? "—",
-    pdFilesCombined: raw.engine_info?.pd_files_combined ?? false,
-    deterministic: raw.engine_info?.deterministic ?? true,
+    version: raw.engineInfo?.version ?? "—",
+    releasedDate: raw.engineInfo?.releasedDate ?? "—",
+    pdMethod: raw.engineInfo?.pdMethod ?? "—",
+    lgdMethod: raw.engineInfo?.lgdMethod ?? "—",
+    eadMethod: raw.engineInfo?.eadMethod ?? "—",
+    pdFilesCombined: raw.engineInfo?.pdFilesCombined ?? false,
+    deterministic: raw.engineInfo?.deterministic ?? true,
   };
 
-  const failureDetails =
-    raw.failure_stage && raw.failure_message
-      ? {
-          stage: raw.failure_stage,
-          message: raw.failure_message,
-          ref: raw.failure_ref ?? "—",
-        }
-      : undefined;
+  const failureDetails = raw.failureDetails
+    ? {
+        stage: raw.failureDetails.stage,
+        message: raw.failureDetails.message,
+        ref: raw.failureDetails.ref,
+      }
+    : undefined;
 
   return {
     ...listItem,
+    elapsed: raw.elapsed ?? undefined,
     kpis,
     segments,
     inputFiles,
     auditEvents,
     engineInfo,
     failureDetails,
-    deletedBy: raw.deleted_by ?? undefined,
-    deletedAt: raw.deleted_at ? formatRunDate(raw.deleted_at) : undefined,
-    acceptedWarnings: raw.accepted_warnings,
+    deletedBy: raw.deletedBy ?? undefined,
+    deletedAt: raw.deletedAt ?? undefined,
+    acceptedWarnings: raw.acceptedWarnings ?? undefined,
   };
 }
 
@@ -648,6 +629,13 @@ export function mapValidationResult(
   raw: ValidationResultRaw,
   uploadedFiles: Array<{ id: string; name: string; type: "PD" | "LGD" | "EAD"; size: string; sheets: number; hash: string; status: import("@/lib/new-run-types").FileStatus }>,
 ): import("@/lib/new-run-types").ValidationResult {
+  const blockingCount =
+    raw.blocking_count ??
+    raw.issues.filter((issue) => issue.level === "block").length;
+  const warningCount =
+    raw.warning_count ??
+    raw.issues.filter((issue) => issue.level === "warn").length;
+
   const fileResults = uploadedFiles.map((f) => {
     const fileIssues = raw.issues
       .filter((issue) => !issue.kind || issue.kind === f.type)
@@ -665,32 +653,40 @@ export function mapValidationResult(
   });
 
   const summary =
-    raw.status === "ok"
+    raw.summary ??
+    (raw.status === "ok"
       ? "All checks passed"
       : raw.status === "blocking"
         ? "Validation errors found"
-        : "Validation warnings found";
+        : "Validation warnings found");
 
-  const subSummary = raw.summary ?? "";
+  const detected = raw.detected_segments ?? [];
+  const subSummary =
+    raw.sub_summary ??
+    (raw.status === "ok"
+      ? `${detected.length} segment(s) detected · files are ready for computation`
+      : raw.status === "blocking"
+        ? `${blockingCount} blocking error(s) must be fixed before continuing`
+        : `${warningCount} warning(s) to review`);
 
   return {
     status: raw.status,
     summary,
     subSummary,
     fileResults,
-    detectedSegments: raw.detected_segments ?? [],
+    detectedSegments: detected,
+    blockingCount,
+    warningCount,
   };
 }
 
 // ── Results mappers ───────────────────────────────────────────────────────
 
 export function mapSegmentData(raw: SegmentDataRaw): SegmentData {
-  const s1 = raw.stage1_pct ?? 0;
-  const s2 = raw.stage2_pct ?? 0;
-  const s3 = raw.stage3_pct ?? 0;
+  const mix = raw.mix ?? [raw.stage1_pct ?? 0, raw.stage2_pct ?? 0, raw.stage3_pct ?? 0];
   return {
     name: raw.name,
-    mix: [s1, s2, s3],
+    mix,
     ecl: raw.ecl,
     outstanding: raw.outstanding,
     coverage: typeof raw.coverage === "number"
@@ -705,15 +701,18 @@ export function mapPortfolio(raw: PortfolioRaw): {
   segments: SegmentData[];
   context: Partial<RunContext>;
 } {
+  const ctx = raw.runContext;
   return {
     segments: (raw.segments ?? []).map(mapSegmentData),
-    context: {
-      runId: raw.run_id,
-      period: raw.period,
-      computedAt: raw.computed_at,
-      engineVersion: raw.engine_version,
-      currency: raw.currency,
-    },
+    context: ctx
+      ? {
+          runId: ctx.runId,
+          period: ctx.period,
+          computedAt: ctx.computedAt,
+          engineVersion: ctx.engineVersion,
+          currency: ctx.currency,
+        }
+      : {},
   };
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { UploadZone } from "../UploadZone";
 import { useRunWizard } from "../RunWizardContext";
@@ -14,17 +15,115 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+function addFileToState(
+  dispatch: ReturnType<typeof useRunWizard>["dispatch"],
+  kind: FileInputType,
+  file: UploadedFile,
+) {
+  if (kind === "PD") {
+    dispatch({ type: "ADD_PD_FILE", file });
+  } else if (kind === "LGD") {
+    dispatch({ type: "SET_LGD_FILE", file });
+  } else {
+    dispatch({ type: "SET_EAD_FILE", file });
+  }
+}
+
 export function UploadStep() {
   const { state, dispatch } = useRunWizard();
   const { uploadFile } = useFileUpload();
   const { token, tenantId } = useApiSession();
+  const initRunPromiseRef = useRef<Promise<string | null> | null>(null);
+  const runIdRef = useRef<string | null>(state.runId);
+
+  useEffect(() => {
+    runIdRef.current = state.runId;
+  }, [state.runId]);
+
+  // Fallback: create draft run on the client if SSR init did not set one
+  useEffect(() => {
+    if (state.runId || state.runInitError || !token || !tenantId) return;
+
+    let cancelled = false;
+    initRunPromiseRef.current = (async () => {
+      try {
+        const raw = await createRun(token, tenantId, {
+          name: state.runName,
+          reporting_period: state.runName,
+        });
+        const runId = raw.fullId ?? raw.id;
+        if (!cancelled) {
+          runIdRef.current = runId;
+          dispatch({ type: "SET_RUN_ID", runId });
+        }
+        return runId;
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "Failed to start a new run. Check your connection and try again.";
+          dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
+        }
+        return null;
+      } finally {
+        initRunPromiseRef.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.runId, state.runInitError, state.runName, token, tenantId, dispatch]);
+
+  async function ensureRunId(): Promise<string | null> {
+    if (runIdRef.current) return runIdRef.current;
+    if (!token || !tenantId) {
+      dispatch({
+        type: "SET_RUN_INIT_ERROR",
+        error: "Your session is missing workspace context. Sign out and sign in again.",
+      });
+      return null;
+    }
+
+    if (initRunPromiseRef.current) {
+      return initRunPromiseRef.current;
+    }
+
+    initRunPromiseRef.current = (async () => {
+      dispatch({ type: "SET_RUN_INIT_ERROR", error: null });
+      try {
+        const raw = await createRun(token, tenantId, {
+          name: state.runName,
+          reporting_period: state.runName,
+        });
+        const runId = raw.fullId ?? raw.id;
+        runIdRef.current = runId;
+        dispatch({ type: "SET_RUN_ID", runId });
+        return runId;
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Failed to start a new run. Check your connection and try again.";
+        dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
+        return null;
+      } finally {
+        initRunPromiseRef.current = null;
+      }
+    })();
+
+    return initRunPromiseRef.current;
+  }
 
   async function handleRetryInit() {
     if (!token || !tenantId) return;
     dispatch({ type: "SET_RUN_INIT_ERROR", error: null });
     try {
       const raw = await createRun(token, tenantId, { name: state.runName });
-      dispatch({ type: "SET_RUN_ID", runId: raw.fullId });
+      const runId = raw.fullId ?? raw.id;
+      runIdRef.current = runId;
+      dispatch({ type: "SET_RUN_ID", runId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to start a new run. Check your connection and try again.";
       dispatch({ type: "SET_RUN_INIT_ERROR", error: msg });
@@ -32,9 +131,7 @@ export function UploadStep() {
   }
 
   async function handleAdd(kind: FileInputType, file: File) {
-    if (!state.runId) return;
-
-    const clientId = `${kind}-${Date.now()}`;
+    const clientId = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const pending: UploadedFile = {
       id: clientId,
       name: file.name,
@@ -45,17 +142,23 @@ export function UploadStep() {
       hash: "—",
     };
 
-    if (kind === "PD") {
-      dispatch({ type: "ADD_PD_FILE", file: pending });
-    } else if (kind === "LGD") {
-      dispatch({ type: "SET_LGD_FILE", file: pending });
-    } else {
-      dispatch({ type: "SET_EAD_FILE", file: pending });
+    // Show the file immediately so the user gets feedback
+    addFileToState(dispatch, kind, pending);
+
+    const runId = await ensureRunId();
+    if (!runId) {
+      dispatch({
+        type: "UPDATE_FILE_STATUS",
+        id: clientId,
+        status: "error",
+        errorMessage: "Could not start run. Use Retry above or refresh the page.",
+      });
+      return;
     }
 
     try {
       const result = await uploadFile(
-        state.runId,
+        runId,
         kind,
         file,
         (pct) => dispatch({ type: "SET_UPLOAD_PROGRESS", fileId: clientId, progress: pct }),
@@ -66,7 +169,7 @@ export function UploadStep() {
         id: clientId,
         status: "ok",
         hash: result.sha256 ? result.sha256.slice(0, 4) + "…" + result.sha256.slice(-4) : "—",
-        sheets: result.sheet_count ?? 0,
+        sheets: result.sheet_count ?? result.sheetCount ?? 0,
         backendUploadId: result.id,
       });
     } catch (err: unknown) {
@@ -157,7 +260,6 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("PD", file)}
         onRemove={(id) => dispatch({ type: "REMOVE_PD_FILE", id })}
         onDownloadTemplate={() => handleDownloadTemplate("PD")}
-        disabled={!state.runId}
       />
 
       {/* LGD zone */}
@@ -167,7 +269,6 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("LGD", file)}
         onRemove={() => dispatch({ type: "SET_LGD_FILE", file: null })}
         onDownloadTemplate={() => handleDownloadTemplate("LGD")}
-        disabled={!state.runId}
       />
 
       {/* EAD zone */}
@@ -177,7 +278,6 @@ export function UploadStep() {
         onAdd={(file) => handleAdd("EAD", file)}
         onRemove={() => dispatch({ type: "SET_EAD_FILE", file: null })}
         onDownloadTemplate={() => handleDownloadTemplate("EAD")}
-        disabled={!state.runId}
       />
     </div>
   );
