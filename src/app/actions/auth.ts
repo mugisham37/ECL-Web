@@ -10,8 +10,7 @@ import {
 } from "@/lib/auth-schema";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
-
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+import { getBackendUrl } from "@/lib/env";
 
 export type AuthFormState =
   | { error?: string; success?: boolean; email?: string; challengeToken?: string }
@@ -110,7 +109,7 @@ export async function signUpAction(
     return { error: validated.error.issues[0]?.message ?? "Please check your inputs." };
   }
 
-  const res = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
+  const res = await fetch(`${getBackendUrl()}/api/v1/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -173,7 +172,7 @@ export async function forgotAction(
     return { error: "Please enter a valid email address." };
   }
 
-  await fetch(`${BACKEND_URL}/api/v1/auth/forgot-password`, {
+  await fetch(`${getBackendUrl()}/api/v1/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: validated.data.email }),
@@ -198,7 +197,7 @@ export async function resetAction(
     return { error: validated.error.issues[0]?.message ?? "Please check your inputs." };
   }
 
-  const res = await fetch(`${BACKEND_URL}/api/v1/auth/reset-password`, {
+  const res = await fetch(`${getBackendUrl()}/api/v1/auth/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token: validated.data.token, password: validated.data.password }),
@@ -235,14 +234,14 @@ export async function inviteAction(
 
   // Validate the invite token first
   const validateRes = await fetch(
-    `${BACKEND_URL}/api/v1/invites/validate/${encodeURIComponent(validated.data.token)}`,
+    `${getBackendUrl()}/api/v1/invites/validate/${encodeURIComponent(validated.data.token)}`,
   );
   if (!validateRes.ok) {
     return { error: "Invalid or expired invite link." };
   }
 
   // Accept the invite (creates account)
-  const acceptRes = await fetch(`${BACKEND_URL}/api/v1/invites/accept`, {
+  const acceptRes = await fetch(`${getBackendUrl()}/api/v1/invites/accept`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -262,7 +261,7 @@ export async function inviteAction(
 
 export async function verifyEmailAction(token: string): Promise<AuthFormState> {
   const res = await fetch(
-    `${BACKEND_URL}/api/v1/auth/verify-email/${encodeURIComponent(token)}`
+    `${getBackendUrl()}/api/v1/auth/verify-email/${encodeURIComponent(token)}`
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -276,7 +275,7 @@ export async function verifyEmailAction(token: string): Promise<AuthFormState> {
 }
 
 export async function resendVerificationAction(email: string): Promise<AuthFormState> {
-  const res = await fetch(`${BACKEND_URL}/api/v1/auth/resend-verification`, {
+  const res = await fetch(`${getBackendUrl()}/api/v1/auth/resend-verification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),

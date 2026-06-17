@@ -1,8 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
-
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+import { getBackendUrl } from "./env";
 
 function buildUserFromAuthData(data: {
   access_token: string;
@@ -37,7 +36,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          const res = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+          const res = await fetch(`${getBackendUrl()}/api/v1/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -89,7 +88,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.challengeToken || !credentials?.code) return null;
         try {
-          const res = await fetch(`${BACKEND_URL}/api/v1/auth/mfa/verify`, {
+          const res = await fetch(`${getBackendUrl()}/api/v1/auth/mfa/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

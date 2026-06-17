@@ -1,7 +1,5 @@
 import { apiFetch, ApiError } from "./client";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getPublicApiUrl } from "@/lib/env";
 
 // ── Raw backend shapes (camelCase — matches RunListItemOut / RunDetailOut) ──
 
@@ -153,7 +151,7 @@ export async function fetchRuns(
   if (params?.status && params.status !== "all") qs.set("status", params.status);
   if (params?.search) qs.set("search", params.search);
   const query = qs.toString() ? `?${qs.toString()}` : "";
-  const res = await fetch(`${BASE_URL}/api/v1/tenants/${tenantId}/runs${query}`, {
+  const res = await fetch(`${getPublicApiUrl()}/api/v1/tenants/${tenantId}/runs${query}`, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
@@ -269,7 +267,7 @@ export async function downloadTemplate(
   kind: "PD" | "LGD" | "EAD",
 ): Promise<void> {
   const res = await fetch(
-    `${BASE_URL}/api/v1/tenants/${tenantId}/templates/${kind}`,
+    `${getPublicApiUrl()}/api/v1/tenants/${tenantId}/templates/${kind}`,
     {
       headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
@@ -341,7 +339,7 @@ export async function uploadRunFile(
       reject(new ApiError("NETWORK_ERROR", "Network error during upload.", 0));
     };
 
-    xhr.open("POST", `${BASE_URL}/api/v1/tenants/${tenantId}/runs/${runId}/uploads`);
+    xhr.open("POST", `${getPublicApiUrl()}/api/v1/tenants/${tenantId}/runs/${runId}/uploads`);
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
     const form = new FormData();

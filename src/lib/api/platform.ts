@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { getPublicApiUrl } from "@/lib/env";
 import {
   mapAuditLog,
   mapEngineVersion,
@@ -118,8 +119,7 @@ export async function promoteEngine(token: string, version: string) {
 }
 
 export async function downloadAuditCsv(token: string) {
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL ?? process.env.BACKEND_URL ?? "http://localhost:8000";
-  const res = await fetch(`${base}/api/v1/platform/audit-logs?export=csv`, {
+  const res = await fetch(`${getPublicApiUrl()}/api/v1/platform/audit-logs?export=csv`, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });

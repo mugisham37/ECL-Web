@@ -3,10 +3,9 @@
 import { OnboardingSchema } from "@/lib/onboarding-schema";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getBackendUrl } from "@/lib/env";
 
 export type OnboardingActionState = { error?: string; success?: boolean } | undefined;
-
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export async function finishOnboardingAction(
   _state: OnboardingActionState,
@@ -52,7 +51,7 @@ export async function finishOnboardingAction(
   };
 
   const res = await fetch(
-    `${BACKEND_URL}/api/v1/onboarding/${tenantId}/complete`,
+    `${getBackendUrl()}/api/v1/onboarding/${tenantId}/complete`,
     {
       method: "POST",
       headers: {
@@ -83,7 +82,7 @@ export async function saveAndExitAction(
 
   const tenantId = session.user.tenantId;
 
-  await fetch(`${BACKEND_URL}/api/v1/onboarding/${tenantId}/save-progress`, {
+  await fetch(`${getBackendUrl()}/api/v1/onboarding/${tenantId}/save-progress`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -103,7 +102,7 @@ export async function autoSaveProgressAction(
 
   const tenantId = session.user.tenantId;
 
-  await fetch(`${BACKEND_URL}/api/v1/onboarding/${tenantId}/save-progress`, {
+  await fetch(`${getBackendUrl()}/api/v1/onboarding/${tenantId}/save-progress`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -121,7 +120,7 @@ export async function getOnboardingProgressAction(): Promise<Record<string, unkn
 
   try {
     const res = await fetch(
-      `${BACKEND_URL}/api/v1/onboarding/${tenantId}/status`,
+      `${getBackendUrl()}/api/v1/onboarding/${tenantId}/status`,
       {
         headers: { Authorization: `Bearer ${session.accessToken}` },
         cache: "no-store",

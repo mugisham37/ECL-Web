@@ -1,12 +1,7 @@
+import { getApiUrl } from "@/lib/env";
+
 function getApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-  }
-  return (
-    process.env.BACKEND_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:8000"
-  );
+  return getApiUrl();
 }
 
 export class ApiError extends Error {
