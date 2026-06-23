@@ -25,7 +25,7 @@ export function LogoStrip() {
           className="text-center text-xs uppercase tracking-widest mb-8"
           style={{ color: "var(--text-subtle)", fontFamily: "var(--font-mono)", letterSpacing: "0.18em" }}
         >
-          Trusted by risk teams across East Africa
+          Designed for risk teams across East Africa
         </p>
         <div
           className="flex items-center justify-center gap-x-12 gap-y-4 flex-wrap"

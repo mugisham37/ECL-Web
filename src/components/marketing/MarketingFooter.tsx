@@ -1,29 +1,23 @@
+"use client";
+
 import Link from "next/link";
 import { Grid3X3 } from "lucide-react";
+import { useDemo } from "./DemoContext";
 
 const footerLinks = {
   Product: [
     { label: "How it works", href: "/#how" },
     { label: "Modules", href: "/#modules" },
     { label: "Pricing", href: "/pricing" },
-    { label: "Methodology", href: "#" },
-    { label: "Documentation", href: "#" },
   ],
   Company: [
-    { label: "About", href: "#" },
     { label: "Security", href: "/security" },
-    { label: "Request a demo", href: "#demo" },
-    { label: "Contact", href: "#" },
-  ],
-  Legal: [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Data Processing", href: "#" },
-    { label: "Sub-processors", href: "#" },
   ],
 };
 
 export function MarketingFooter() {
+  const { openDemo } = useDemo();
+
   return (
     <footer
       style={{
@@ -34,7 +28,7 @@ export function MarketingFooter() {
     >
       <div style={{ maxWidth: 1140, margin: "0 auto", padding: "0 var(--gutter)" }}>
         {/* Grid */}
-        <div className="grid gap-8 f-grid" style={{ gridTemplateColumns: "1.6fr 1fr 1fr 1fr" }}>
+        <div className="grid gap-8 f-grid" style={{ gridTemplateColumns: "1.6fr 1fr 1fr" }}>
           {/* Brand column */}
           <div className="flex flex-col gap-4 max-sm:col-span-full">
             <div className="flex items-center gap-2 font-semibold text-base" style={{ color: "#fff" }}>
@@ -52,7 +46,7 @@ export function MarketingFooter() {
             </p>
           </div>
 
-          {/* Link columns */}
+          {/* Product + Company link columns */}
           {(Object.entries(footerLinks) as [string, { label: string; href: string }[]][]).map(
             ([heading, links]) => (
               <div key={heading} className="flex flex-col gap-1 max-sm:col-span-full">
@@ -72,6 +66,15 @@ export function MarketingFooter() {
                     {link.label}
                   </Link>
                 ))}
+                {heading === "Company" && (
+                  <button
+                    onClick={openDemo}
+                    className="text-sm py-1 text-left transition-colors duration-120 hover:!text-white"
+                    style={{ color: "rgba(236,237,245,0.6)", background: "none", border: "none", padding: "4px 0", cursor: "pointer" }}
+                  >
+                    Request a demo
+                  </button>
+                )}
               </div>
             )
           )}
