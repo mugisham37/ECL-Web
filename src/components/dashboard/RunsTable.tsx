@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, Copy, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { StatusPill } from "./shared/StatusPill";
@@ -53,6 +54,7 @@ function formatEcl(amount: number | null | undefined, currency: string): React.R
 }
 
 export function RunsTable({ runs }: RunsTableProps) {
+  const router = useRouter();
   return (
     <>
       <div className="runs-head">
@@ -68,7 +70,7 @@ export function RunsTable({ runs }: RunsTableProps) {
       </div>
 
       <div className="tbl-wrap">
-        <table className="tbl">
+        <table className="tbl runs-table">
           <thead>
             <tr>
               <th>Run</th>
@@ -97,7 +99,10 @@ export function RunsTable({ runs }: RunsTableProps) {
               </tr>
             ) : (
               runs.map((run) => (
-                <tr key={run.id}>
+                <tr
+                  key={run.id}
+                  onClick={() => router.push(`/runs/${run.fullId}`)}
+                >
                   <td>
                     <span className="run-id">
                       {run.id}
@@ -125,6 +130,7 @@ export function RunsTable({ runs }: RunsTableProps) {
                   </td>
                   <td>
                     <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/runs/${run.fullId}`); }}
                       style={{
                         width: 32,
                         height: 32,

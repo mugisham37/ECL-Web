@@ -13,7 +13,7 @@
 @import '@fontsource/geist-mono/400.css';
 @import '@fontsource/geist-mono/500.css';
 
-/* Teach Tailwind's dark: prefix to match data-theme="dark" attribute (set by next-themes) */
+/* Teach Tailwind's dark: prefix to match data-theme="dark" attribute */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
 /* ================================================================
@@ -630,8 +630,9 @@
 .row-actions { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
 .tbl-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-muted); }
 
-/* Runs table: clickable rows */
-.runs-table tbody tr { cursor: pointer; }
+/* Clickable table rows (avoid inline cursor styles — React 19 hydration mismatch) */
+.runs-table tbody tr,
+.rx-table tbody tr { cursor: pointer; }
 
 /* ---- PILL EXTRA VARIANTS ---- */
 .pill-draft   { background: var(--surface-sunken); color: var(--text-muted); }

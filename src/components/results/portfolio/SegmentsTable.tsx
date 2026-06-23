@@ -40,7 +40,6 @@ export function SegmentsTable({ segments, onDrillSegment }: SegmentsTableProps) 
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.15, delay: i * 0.03, ease: [0.22, 1, 0.36, 1] }}
               onClick={() => onDrillSegment(seg.name)}
-              style={{ cursor: "pointer" }}
             >
               <td>
                 <span className="seg-link">{seg.name}</span>

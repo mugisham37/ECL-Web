@@ -57,7 +57,6 @@ export function SegmentLoansTable({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.15, delay: i * 0.03, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => onDrillLoan(loan.id)}
-                style={{ cursor: "pointer" }}
               >
                 <td>
                   <span className="loan-link" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--fs-caption)" }}>
