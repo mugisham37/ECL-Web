@@ -17,7 +17,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className="min-h-full antialiased">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme")||"light";document.documentElement.setAttribute("data-theme",t);document.documentElement.style.colorScheme=t==="dark"?"dark":"light"}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-full antialiased" suppressHydrationWarning>
         <AuthProvider>
           <QueryProvider>
             <ThemeProvider>{children}</ThemeProvider>

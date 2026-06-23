@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/providers/ThemeProvider";
 import { ThemePicker } from "../appearance/ThemePicker";
 import type { ThemePref } from "@/lib/settings-types";
 
