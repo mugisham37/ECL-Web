@@ -329,13 +329,13 @@ function mapDashboardKpi(raw: DashboardKpiRaw): KpiData {
   return {
     id: raw.id,
     label: raw.label,
-    helpText: raw.help_text,
-    currencyPrefix: raw.currency_prefix,
+    helpText: raw.helpText,
+    currencyPrefix: raw.currencyPrefix,
     value: raw.value,
     delta: raw.delta,
-    deltaDir: raw.delta_dir,
-    subNote: raw.sub_note,
-    staleAsOf: raw.stale_as_of,
+    deltaDir: raw.deltaDir,
+    subNote: raw.subNote,
+    staleAsOf: raw.staleAsOf,
   };
 }
 
@@ -351,18 +351,19 @@ function mapDashboardRun(raw: DashboardRunRaw): Run {
     queued: "queued",
   };
   return {
-    id: raw.full_id ? raw.full_id.slice(0, 4) + "…" + raw.full_id.slice(-4) : raw.id,
+    id: raw.fullId ? raw.fullId.slice(0, 4) + "…" + raw.fullId.slice(-4) : raw.id,
+    fullId: raw.fullId ?? raw.id,
     period: raw.period,
-    byInitials: raw.by_initials,
-    byName: raw.by_name,
+    byInitials: raw.byInitials,
+    byName: raw.byName,
     status: statusMap[raw.status] ?? "queued",
-    eclAmount: raw.ecl_amount,
+    eclAmount: raw.eclAmount,
     currency: raw.currency,
   };
 }
 
 function deriveDashboardState(raw: DashboardRaw): DashboardState {
-  if (raw.active_run) return "running";
+  if (raw.activeRun) return "running";
   if (!raw.runs || raw.runs.length === 0) return "empty";
   const hasComplete = raw.runs.some((r) =>
     ["complete", "success"].includes(r.status),
@@ -377,17 +378,17 @@ function deriveBannerProps(
   raw: DashboardRaw,
   state: DashboardState,
 ): BannerProps | undefined {
-  if (state === "running" && raw.active_run) {
+  if (state === "running" && raw.activeRun) {
     return {
       variant: "running",
-      progress: raw.active_run.progress ?? 0,
+      progress: raw.activeRun.progress ?? 0,
     };
   }
   if (state === "failed" && raw.runs[0]) {
     return {
       variant: "failed",
       failedAt: raw.runs[0].period,
-      errorRef: raw.runs[0].full_id ?? raw.runs[0].id,
+      errorRef: raw.runs[0].fullId ?? raw.runs[0].id,
     };
   }
   if (state === "incomplete") {
@@ -415,7 +416,7 @@ export function mapDashboardToPageData(
   const stages: StageSlice[] = (raw.stages ?? []).map((s, i) => ({
     stage: s.stage,
     percent: s.percent,
-    colorVar: (s.color_var ?? (i + 1)) as StageSlice["colorVar"],
+    colorVar: (s.colorVar ?? (i + 1)) as StageSlice["colorVar"],
   }));
 
   const trend: TrendPoint[] = (raw.trend ?? []).map((t) => ({

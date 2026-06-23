@@ -79,6 +79,7 @@ export type RunStatus = z.infer<typeof RunStatusSchema>;
 
 export const RunSchema = z.object({
   id: z.string(),
+  fullId: z.string(),
   period: z.string(),
   byInitials: z.string(),
   byName: z.string(),
