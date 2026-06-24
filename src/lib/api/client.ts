@@ -1,8 +1,4 @@
-import { getApiUrl } from "@/lib/env";
-
-function getApiBaseUrl(): string {
-  return getApiUrl();
-}
+import { buildApiPath, getApiUrl } from "@/lib/env";
 
 export class ApiError extends Error {
   constructor(
@@ -22,6 +18,7 @@ interface ApiEnvelope<T> {
 
 export const SERVER_FETCH_TIMEOUT_MS = 10_000;
 export const SERVER_FETCH_WRITE_TIMEOUT_MS = 15_000;
+export const UPLOAD_TIMEOUT_MS = 300_000;
 
 function defaultServerTimeoutMs(method?: string): number | undefined {
   if (typeof window !== "undefined") return undefined;
@@ -36,9 +33,9 @@ function defaultServerTimeoutMs(method?: string): number | undefined {
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
+    const res = await fetch(buildApiPath("/auth/refresh"), {
       method: "POST",
       credentials: "include",
     });
@@ -53,6 +50,30 @@ async function refreshAccessToken(): Promise<string | null> {
 function drainQueue(token: string | null) {
   refreshQueue.forEach((resolve) => resolve(token));
   refreshQueue = [];
+}
+
+async function resolveFreshToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+
+  if (!isRefreshing) {
+    isRefreshing = true;
+    const newToken = await refreshAccessToken();
+    isRefreshing = false;
+    drainQueue(newToken);
+    return newToken;
+  }
+
+  return new Promise<string | null>((resolve) => {
+    refreshQueue.push(resolve);
+  });
+}
+
+function networkError(): ApiError {
+  return new ApiError(
+    "NETWORK_ERROR",
+    "We couldn't connect to the service. Check your internet connection and try again.",
+    0,
+  );
 }
 
 // ── Core fetch ────────────────────────────────────────────────────────────
@@ -81,7 +102,7 @@ export async function apiFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
+    res = await fetch(buildApiPath(path), {
       ...rest,
       headers,
       credentials: "include",
@@ -91,16 +112,12 @@ export async function apiFetch<T>(
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new ApiError(
         "TIMEOUT",
-        "The request timed out. Large files can take a while — try again.",
+        "This is taking longer than expected. Please wait a moment and try again.",
         408,
       );
     }
     if (err instanceof TypeError) {
-      throw new ApiError(
-        "NETWORK_ERROR",
-        "Could not reach the API server. Check that ECL-Server is running on port 8000.",
-        0,
-      );
+      throw networkError();
     }
     throw err;
   } finally {
@@ -109,68 +126,34 @@ export async function apiFetch<T>(
 
   // ── 401 refresh (client-side only) ──────────────────────────────────────
   if (res.status === 401 && typeof window !== "undefined") {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      const newToken = await refreshAccessToken();
-      isRefreshing = false;
-      drainQueue(newToken);
+    const newToken = await resolveFreshToken();
 
-      if (!newToken) {
-        const { signOut } = await import("next-auth/react");
-        await signOut({ redirectTo: "/sign-in" });
-        throw new ApiError("UNAUTHORIZED", "Session expired.", 401);
-      }
-
-      // Retry once with the new token
-      const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
-      const retryRes = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
-        ...rest,
-        headers: retryHeaders,
-        credentials: "include",
-        signal: controller?.signal,
-      });
-      if (retryRes.status === 204) return undefined as T;
-      const retryBody = await retryRes.json().catch(() => ({}));
-      if (!retryRes.ok) {
-        throw new ApiError(
-          retryBody.code ?? "API_ERROR",
-          retryBody.detail ?? "Request failed.",
-          retryRes.status,
-        );
-      }
-      if (retryBody && typeof retryBody === "object" && "data" in retryBody) {
-        return (retryBody as ApiEnvelope<T>).data;
-      }
-      return retryBody as T;
-    } else {
-      // Another refresh is in flight — queue this request
-      const newToken = await new Promise<string | null>((resolve) => {
-        refreshQueue.push(resolve);
-      });
-      if (!newToken) {
-        throw new ApiError("UNAUTHORIZED", "Session expired.", 401);
-      }
-      const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
-      const retryRes = await fetch(`${getApiBaseUrl()}/api/v1${path}`, {
-        ...rest,
-        headers: retryHeaders,
-        credentials: "include",
-        signal: controller?.signal,
-      });
-      if (retryRes.status === 204) return undefined as T;
-      const retryBody = await retryRes.json().catch(() => ({}));
-      if (!retryRes.ok) {
-        throw new ApiError(
-          retryBody.code ?? "API_ERROR",
-          retryBody.detail ?? "Request failed.",
-          retryRes.status,
-        );
-      }
-      if (retryBody && typeof retryBody === "object" && "data" in retryBody) {
-        return (retryBody as ApiEnvelope<T>).data;
-      }
-      return retryBody as T;
+    if (!newToken) {
+      const { signOut } = await import("next-auth/react");
+      await signOut({ redirectTo: "/sign-in" });
+      throw new ApiError("UNAUTHORIZED", "Your session has expired. Sign in again to continue.", 401);
     }
+
+    const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
+    const retryRes = await fetch(buildApiPath(path), {
+      ...rest,
+      headers: retryHeaders,
+      credentials: "include",
+      signal: controller?.signal,
+    });
+    if (retryRes.status === 204) return undefined as T;
+    const retryBody = await retryRes.json().catch(() => ({}));
+    if (!retryRes.ok) {
+      throw new ApiError(
+        retryBody.code ?? "API_ERROR",
+        retryBody.detail ?? "Request failed.",
+        retryRes.status,
+      );
+    }
+    if (retryBody && typeof retryBody === "object" && "data" in retryBody) {
+      return (retryBody as ApiEnvelope<T>).data;
+    }
+    return retryBody as T;
   }
 
   if (res.status === 204) {
@@ -191,4 +174,20 @@ export async function apiFetch<T>(
     return (body as ApiEnvelope<T>).data;
   }
   return body as T;
+}
+
+/** Check whether the backend is reachable (client-side). */
+export async function checkBackendAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/backend-status", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => ({}));
+    // backend-status returns { reachable: true, status: "ready" } from probeBackend
+    return body?.reachable === true || body?.ok === true;
+  } catch {
+    return false;
+  }
 }
