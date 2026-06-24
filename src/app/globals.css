@@ -930,6 +930,9 @@
 .run-switch-item.active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .run-switch-item.disabled { opacity: 0.55; cursor: not-allowed; }
 .run-switch-item.disabled:hover { background: none; }
+.run-switch-item-nav { cursor: pointer; }
+.run-switch-item-nav:hover { background: var(--surface-sunken); }
+.run-switch-item-action { color: var(--accent); font-weight: var(--fw-medium); }
 .run-switch-item-main { min-width: 0; flex: 1; }
 .run-switch-item-title { display: flex; align-items: center; gap: 6px; font-weight: var(--fw-medium); color: var(--text); }
 .run-switch-item-title svg { color: var(--accent); flex-shrink: 0; }
