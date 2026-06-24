@@ -6,7 +6,7 @@ import { UploadZone } from "../UploadZone";
 import { useRunWizard } from "../RunWizardContext";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useApiSession } from "@/hooks/use-api-session";
-import { createRun } from "@/lib/api/runs";
+import { createRun, deleteUpload, downloadTemplate } from "@/lib/api/runs";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
 
 function formatBytes(bytes: number): string {
@@ -179,13 +179,47 @@ export function UploadStep() {
     }
   }
 
-  function handleDownloadTemplate(kind: FileInputType) {
-    const a = document.createElement("a");
-    a.href = `/templates/ECL_${kind}_template.xlsx`;
-    a.download = `ECL_${kind}_template.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  async function handleRemovePd(id: string) {
+    const file = state.pdFiles.find((f) => f.id === id);
+    if (file?.backendUploadId && state.runId && token && tenantId) {
+      try {
+        await deleteUpload(token, tenantId, state.runId, file.backendUploadId);
+      } catch {
+        /* still remove from UI */
+      }
+    }
+    dispatch({ type: "REMOVE_PD_FILE", id });
+  }
+
+  async function handleRemoveLgd(_id: string) {
+    if (state.lgdFile?.backendUploadId && state.runId && token && tenantId) {
+      try {
+        await deleteUpload(token, tenantId, state.runId, state.lgdFile.backendUploadId);
+      } catch {
+        /* still remove from UI */
+      }
+    }
+    dispatch({ type: "SET_LGD_FILE", file: null });
+  }
+
+  async function handleRemoveEad(_id: string) {
+    if (state.eadFile?.backendUploadId && state.runId && token && tenantId) {
+      try {
+        await deleteUpload(token, tenantId, state.runId, state.eadFile.backendUploadId);
+      } catch {
+        /* still remove from UI */
+      }
+    }
+    dispatch({ type: "SET_EAD_FILE", file: null });
+  }
+
+  async function handleDownloadTemplate(kind: FileInputType) {
+    if (!token || !tenantId) return;
+    try {
+      await downloadTemplate(token, tenantId, kind);
+    } catch {
+      /* surfaced by browser if download fails */
+    }
   }
 
   return (
@@ -258,8 +292,9 @@ export function UploadStep() {
         type="PD"
         files={state.pdFiles}
         onAdd={(file) => handleAdd("PD", file)}
-        onRemove={(id) => dispatch({ type: "REMOVE_PD_FILE", id })}
+        onRemove={handleRemovePd}
         onDownloadTemplate={() => handleDownloadTemplate("PD")}
+        uploadProgress={state.uploadProgress}
       />
 
       {/* LGD zone */}
@@ -267,8 +302,9 @@ export function UploadStep() {
         type="LGD"
         files={state.lgdFile ? [state.lgdFile] : []}
         onAdd={(file) => handleAdd("LGD", file)}
-        onRemove={() => dispatch({ type: "SET_LGD_FILE", file: null })}
+        onRemove={handleRemoveLgd}
         onDownloadTemplate={() => handleDownloadTemplate("LGD")}
+        uploadProgress={state.uploadProgress}
       />
 
       {/* EAD zone */}
@@ -276,8 +312,9 @@ export function UploadStep() {
         type="EAD"
         files={state.eadFile ? [state.eadFile] : []}
         onAdd={(file) => handleAdd("EAD", file)}
-        onRemove={() => dispatch({ type: "SET_EAD_FILE", file: null })}
+        onRemove={handleRemoveEad}
         onDownloadTemplate={() => handleDownloadTemplate("EAD")}
+        uploadProgress={state.uploadProgress}
       />
     </div>
   );
