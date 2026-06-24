@@ -5,6 +5,7 @@ import type { NewRunStep } from "@/lib/new-run-types";
 interface RunWizardFooterProps {
   currentStep: NewRunStep;
   canContinue: boolean;
+  continueHint: string;
   onBack: () => void;
   onCancel: () => void;
   onNext: () => void;
@@ -19,6 +20,7 @@ const NEXT_LABELS: Partial<Record<NewRunStep, string>> = {
 export function RunWizardFooter({
   currentStep,
   canContinue,
+  continueHint,
   onBack,
   onCancel,
   onNext,
@@ -93,9 +95,7 @@ export function RunWizardFooter({
                 exit={{ opacity: 0, y: -4 }}
                 className="tip-body"
               >
-                {currentStep === "upload"
-                  ? "Add all three file types first"
-                  : "Resolve blocking errors first"}
+                {continueHint}
               </motion.span>
             )}
           </AnimatePresence>
