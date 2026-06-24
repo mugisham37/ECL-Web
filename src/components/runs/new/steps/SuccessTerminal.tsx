@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ResultKpiCard } from "../ResultKpiCard";
 import { useRunWizard } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
-import { getDownloadUrl } from "@/lib/api/runs";
+import { downloadRunArtifactFile } from "@/lib/api/runs";
 
 export function SuccessTerminal() {
   const { state } = useRunWizard();
@@ -22,8 +22,7 @@ export function SuccessTerminal() {
     if (!token || !tenantId || !result) return;
     setDownloading(true);
     try {
-      const { url } = await getDownloadUrl(token, tenantId, result.fullId, "ECL_SUMMARY");
-      window.open(url, "_blank", "noopener,noreferrer");
+      await downloadRunArtifactFile(token, tenantId, result.fullId, "ECL_SUMMARY");
     } catch {
       // non-fatal — user can try again from run detail
     } finally {
