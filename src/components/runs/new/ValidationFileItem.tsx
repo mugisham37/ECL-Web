@@ -9,14 +9,22 @@ interface ValidationFileItemProps {
   zoneLabel: string;
   onReupload: (newFile: File) => void;
   isReuploading?: boolean;
+  onDownloadTemplate?: () => void;
 }
 
-export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploading }: ValidationFileItemProps) {
+export function ValidationFileItem({
+  result,
+  zoneLabel,
+  onReupload,
+  isReuploading,
+  onDownloadTemplate,
+}: ValidationFileItemProps) {
   const { file, issues } = result;
   const blocking = issues.filter((issue) => issue.level === "block");
   const warnings = issues.filter((issue) => issue.level === "warn");
   const hasIssues = issues.length > 0;
   const hasBlocking = blocking.length > 0;
+  const hasTemplateFormat = issues.some((issue) => issue.category === "template_format");
   const [open, setOpen] = useState(hasIssues);
 
   const statusPill = !hasIssues ? (
@@ -96,29 +104,46 @@ export function ValidationFileItem({ result, zoneLabel, onReupload, isReuploadin
               </div>
             </div>
           ))}
-          <button
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12,
-              height: 28, padding: "0 10px", background: "var(--surface)", color: "var(--text)",
-              border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
-              fontSize: "var(--fs-caption)", cursor: isReuploading ? "not-allowed" : "pointer",
-              opacity: isReuploading ? 0.6 : 1,
-            }}
-            disabled={isReuploading}
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".xlsx,.xls";
-              input.onchange = (e) => {
-                const picked = (e.target as HTMLInputElement).files?.[0];
-                if (picked) onReupload(picked);
-              };
-              input.click();
-            }}
-          >
-            <RefreshCw size={12} style={{ animation: isReuploading ? "spin 0.7s linear infinite" : "none" }} />
-            {isReuploading ? "Uploading…" : `Re-upload ${file.name}`}
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {hasTemplateFormat && onDownloadTemplate && (
+              <button
+                type="button"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 28, padding: "0 10px", background: "var(--surface)", color: "var(--text)",
+                  border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
+                  fontSize: "var(--fs-caption)", cursor: "pointer",
+                }}
+                onClick={onDownloadTemplate}
+              >
+                Download correct template
+              </button>
+            )}
+            <button
+              type="button"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                height: 28, padding: "0 10px", background: "var(--surface)", color: "var(--text)",
+                border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)",
+                fontSize: "var(--fs-caption)", cursor: isReuploading ? "not-allowed" : "pointer",
+                opacity: isReuploading ? 0.6 : 1,
+              }}
+              disabled={isReuploading}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".xlsx,.xls";
+                input.onchange = (e) => {
+                  const picked = (e.target as HTMLInputElement).files?.[0];
+                  if (picked) onReupload(picked);
+                };
+                input.click();
+              }}
+            >
+              <RefreshCw size={12} style={{ animation: isReuploading ? "spin 0.7s linear infinite" : "none" }} />
+              {isReuploading ? "Uploading…" : `Re-upload ${file.name}`}
+            </button>
+          </div>
         </div>
       )}
     </div>
