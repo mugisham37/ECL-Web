@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { RunDetailLoader } from "@/components/runs/RunDetailLoader";
 
 interface RunDetailPageProps {
@@ -14,8 +12,5 @@ export async function generateMetadata({ params }: RunDetailPageProps): Promise<
 
 export default async function RunDetailPage({ params }: RunDetailPageProps) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user) redirect("/sign-in");
-
   return <RunDetailLoader runId={id} />;
 }
