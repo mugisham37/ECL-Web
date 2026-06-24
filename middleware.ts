@@ -7,6 +7,12 @@ export default auth;
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|otf|eot)$).*)",
+    "/dashboard/:path*",
+    "/runs/:path*",
+    "/results/:path*",
+    "/admin/:path*",
+    "/settings/:path*",
+    "/platform/:path*",
+    "/setup/:path*",
   ],
 };
