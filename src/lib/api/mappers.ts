@@ -59,14 +59,9 @@ import type {
   PortfolioRaw,
 } from "@/lib/api/results";
 
-export function formatRole(role: string): string {
-  const map: Record<string, string> = {
-    administrator: "Admin",
-    analyst: "Analyst",
-    reviewer: "Reviewer",
-  };
-  return map[role.toLowerCase()] ?? role;
-}
+import { formatRole } from "@/lib/format-role";
+
+export { formatRole };
 
 export function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return "Never";
