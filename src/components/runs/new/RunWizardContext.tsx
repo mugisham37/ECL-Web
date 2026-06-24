@@ -175,7 +175,41 @@ export function canContinueFrom(state: NewRunState): boolean {
   if (state.step === "validate") {
     if (state.isValidating) return false;
     if (!state.validationResult) return false;
-    return state.validationResult.status !== "blocking";
+    if (state.validationResult.requestError) return false;
+    if (state.validationResult.status === "blocking") return false;
+    if (state.validationResult.status === "warn") {
+      const warningIds = state.validationResult.fileResults.flatMap((fr) =>
+        fr.issues.filter((i) => i.level === "warn").map((i) => i.id),
+      );
+      if (warningIds.length === 0) return true;
+      return warningIds.every((id) => state.acceptedWarningIds.includes(id));
+    }
+    return true;
   }
   return true;
+}
+
+export function getFooterHint(state: NewRunState): string {
+  if (state.step === "upload") {
+    return "Add all three file types first";
+  }
+  if (state.step === "validate") {
+    if (state.validationResult?.requestError?.isServiceUnavailable) {
+      return "Service unavailable — retry validation";
+    }
+    if (state.validationResult?.requestError) {
+      return "Resolve the issue above, then retry";
+    }
+    if (state.validationResult?.status === "warn") {
+      const warningIds = state.validationResult.fileResults.flatMap((fr) =>
+        fr.issues.filter((i) => i.level === "warn").map((i) => i.id),
+      );
+      const allAccepted = warningIds.every((id) => state.acceptedWarningIds.includes(id));
+      if (!allAccepted) {
+        return "Review and accept warnings to continue";
+      }
+    }
+    return "Fix the errors in your files before continuing";
+  }
+  return "Complete this step to continue";
 }
