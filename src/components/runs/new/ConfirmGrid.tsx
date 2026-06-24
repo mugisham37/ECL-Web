@@ -11,6 +11,11 @@ interface ConfirmGridProps {
 
 export function ConfirmGrid({ state, onToggleCombine }: ConfirmGridProps) {
   const showCombine = state.pdFiles.length > 1;
+  const segments =
+    state.validationResult?.detectedSegments &&
+    state.validationResult.detectedSegments.length > 0
+      ? state.validationResult.detectedSegments
+      : DETECTED_SEGMENTS;
 
   return (
     <div>
@@ -53,7 +58,7 @@ export function ConfirmGrid({ state, onToggleCombine }: ConfirmGridProps) {
           <span className="cr-k">Segments detected</span>
           <span className="cr-v">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {DETECTED_SEGMENTS.map((s) => <SegmentTag key={s} label={s} />)}
+              {segments.map((s) => <SegmentTag key={s} label={s} />)}
             </div>
           </span>
         </div>
