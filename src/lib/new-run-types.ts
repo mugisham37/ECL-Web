@@ -38,8 +38,9 @@ export interface ValidationIssue {
   id: string;
   level: "warn" | "block";
   title: string;
-  location: string;    // "Sheet 1 · column F · 14 rows"
+  location: string;
   fix: string;
+  category?: string | null;
 }
 
 export interface ValidationFileResult {
@@ -59,7 +60,9 @@ export interface ValidationResult {
     code?: string;
     status?: number;
     hint: string;
+    isServiceUnavailable?: boolean;
   };
+  hasTemplateFormatIssues?: boolean;
 }
 
 // ── Compute ────────────────────────────────────────────────────────────────
