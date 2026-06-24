@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/dashboard/AppShell";
-import { formatRole } from "@/lib/api/mappers";
+import { formatRole } from "@/lib/format-role";
 
 function getInitials(name: string): string {
   return name
