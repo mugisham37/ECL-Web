@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "@/providers/ThemeProvider";
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/providers/ThemeProvider";
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
@@ -11,7 +11,7 @@ export function ThemeToggle() {
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="size-9" />;
+  if (!mounted) return <div className="size-9" aria-hidden="true" />;
 
   return (
     <Button
