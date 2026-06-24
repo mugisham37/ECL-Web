@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import { getPublicApiUrl } from "@/lib/env";
+import { buildApiPath } from "@/lib/env";
 import {
   mapAuditLog,
   mapEngineVersion,
@@ -119,7 +119,7 @@ export async function promoteEngine(token: string, version: string) {
 }
 
 export async function downloadAuditCsv(token: string) {
-  const res = await fetch(`${getPublicApiUrl()}/api/v1/platform/audit-logs?export=csv`, {
+  const res = await fetch(buildApiPath("/platform/audit-logs?export=csv"), {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
