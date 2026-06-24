@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { ChevronDown, Download, Minimize2, Maximize2 } from "lucide-react";
+import { ChevronDown, Download, Loader2, Minimize2, Maximize2 } from "lucide-react";
 import type { RunContext } from "@/lib/results-types";
 import type { RunListItem } from "@/lib/runs-types";
 import { RunSwitcher } from "./RunSwitcher";
+
+export type ExportKind = "csv" | "summary" | "bundle";
 
 interface ResultsHeaderProps {
   runContext: RunContext;
@@ -12,8 +14,13 @@ interface ResultsHeaderProps {
   currentRunFullId: string;
   runsLoading?: boolean;
   density: "compact" | "comfortable";
+  exportDisabled?: boolean;
+  exportBusy?: ExportKind | null;
   onDensityToggle: () => void;
-  onRunSelect: (fullId: string) => void;
+  onRunSelect: (run: RunListItem) => void;
+  onExportCurrentView?: () => void;
+  onExportFullWorkbook?: () => void;
+  onExportWorkbooksBundle?: () => void;
 }
 
 export function ResultsHeader({
@@ -22,8 +29,13 @@ export function ResultsHeader({
   currentRunFullId,
   runsLoading,
   density,
+  exportDisabled = false,
+  exportBusy = null,
   onDensityToggle,
   onRunSelect,
+  onExportCurrentView,
+  onExportFullWorkbook,
+  onExportWorkbooksBundle,
 }: ResultsHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -94,16 +106,52 @@ export function ResultsHeader({
           </button>
           {exportOpen && (
             <div className="menu-pop" role="menu" style={{ minWidth: 240 }}>
-              <button className="mp-item" role="menuitem">
-                <Download size={14} className="mp-ic" aria-hidden />
+              <button
+                className="mp-item"
+                role="menuitem"
+                disabled={exportDisabled || exportBusy !== null}
+                onClick={() => {
+                  onExportCurrentView?.();
+                  setExportOpen(false);
+                }}
+              >
+                {exportBusy === "csv" ? (
+                  <Loader2 size={14} className="mp-ic" aria-hidden style={{ animation: "spin 0.7s linear infinite" }} />
+                ) : (
+                  <Download size={14} className="mp-ic" aria-hidden />
+                )}
                 Current view (.csv)
               </button>
-              <button className="mp-item" role="menuitem">
-                <Download size={14} className="mp-ic" aria-hidden />
+              <button
+                className="mp-item"
+                role="menuitem"
+                disabled={exportDisabled || exportBusy !== null}
+                onClick={() => {
+                  onExportFullWorkbook?.();
+                  setExportOpen(false);
+                }}
+              >
+                {exportBusy === "summary" ? (
+                  <Loader2 size={14} className="mp-ic" aria-hidden style={{ animation: "spin 0.7s linear infinite" }} />
+                ) : (
+                  <Download size={14} className="mp-ic" aria-hidden />
+                )}
                 Full results workbook (.xlsx)
               </button>
-              <button className="mp-item" role="menuitem">
-                <Download size={14} className="mp-ic" aria-hidden />
+              <button
+                className="mp-item"
+                role="menuitem"
+                disabled={exportDisabled || exportBusy !== null}
+                onClick={() => {
+                  onExportWorkbooksBundle?.();
+                  setExportOpen(false);
+                }}
+              >
+                {exportBusy === "bundle" ? (
+                  <Loader2 size={14} className="mp-ic" aria-hidden style={{ animation: "spin 0.7s linear infinite" }} />
+                ) : (
+                  <Download size={14} className="mp-ic" aria-hidden />
+                )}
                 PD / LGD / EAD workbooks (.zip)
               </button>
             </div>
