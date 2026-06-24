@@ -1,5 +1,13 @@
-import { apiFetch, ApiError, SERVER_FETCH_TIMEOUT_MS } from "./client";
-import { getApiUrl, getPublicApiUrl } from "@/lib/env";
+import {
+  apiFetch,
+  ApiError,
+  refreshAccessToken,
+  SERVER_FETCH_TIMEOUT_MS,
+  UPLOAD_TIMEOUT_MS,
+} from "./client";
+import { buildApiPath } from "@/lib/env";
+
+export { checkBackendAvailable } from "./client";
 
 // ── Raw backend shapes (camelCase — matches RunListItemOut / RunDetailOut) ──
 
@@ -93,6 +101,9 @@ export interface ValidationIssueRaw {
   id: string;
   level: "warn" | "block";
   kind?: "PD" | "LGD" | "EAD";
+  upload_id?: string | null;
+  filename?: string | null;
+  category?: string | null;
   title: string;
   location?: string;
   fix?: string;
@@ -159,14 +170,11 @@ export async function fetchRuns(
     setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
 
   try {
-    const res = await fetch(
-      `${getApiUrl()}/api/v1/tenants/${tenantId}/runs${query}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
-        signal: controller?.signal,
-      },
-    );
+    const res = await fetch(buildApiPath(`/tenants/${tenantId}/runs${query}`), {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+      signal: controller?.signal,
+    });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new ApiError(
@@ -183,14 +191,14 @@ export async function fetchRuns(
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new ApiError(
         "TIMEOUT",
-        "The request timed out. Check that ECL-Server is running.",
+        "The request timed out. Please try again.",
         408,
       );
     }
     if (err instanceof TypeError) {
       throw new ApiError(
         "NETWORK_ERROR",
-        "Could not reach the API server. Check that ECL-Server is running on port 8000.",
+        "We couldn't connect to the service. Check your internet connection and try again.",
         0,
       );
     }
@@ -280,15 +288,86 @@ export async function executeRun(
   );
 }
 
+export type OutputArtifactKind = "PD_CALCS" | "LGD" | "RUNDOWN" | "ECL_SUMMARY";
+
+const ARTIFACT_DEFAULT_FILENAMES: Record<OutputArtifactKind, string> = {
+  PD_CALCS: "PD Calcs.xlsx",
+  LGD: "LGD.xlsx",
+  RUNDOWN: "Contractual Rundown.xlsx",
+  ECL_SUMMARY: "ECL Summary.xlsx",
+};
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const match = /filename="([^"]+)"/i.exec(header);
+  return match?.[1] ?? fallback;
+}
+
 export async function getDownloadUrl(
   token: string,
   tenantId: string,
   runId: string,
-  kind: "PD_CALCS" | "LGD" | "RUNDOWN" | "ECL_SUMMARY",
+  kind: OutputArtifactKind,
 ): Promise<DownloadUrlRaw> {
   return apiFetch<DownloadUrlRaw>(
     `/tenants/${tenantId}/runs/${runId}/downloads/${kind}`,
     { token },
+  );
+}
+
+export async function downloadRunArtifactFile(
+  token: string,
+  tenantId: string,
+  runId: string,
+  kind: OutputArtifactKind,
+): Promise<void> {
+  const res = await fetch(
+    buildApiPath(`/tenants/${tenantId}/runs/${runId}/downloads/${kind}/file`),
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+    },
+  );
+  if (!res.ok) {
+    throw new ApiError("DOWNLOAD_FAILED", "Workbook download failed.", res.status);
+  }
+  const blob = await res.blob();
+  triggerBlobDownload(
+    blob,
+    filenameFromContentDisposition(res.headers.get("Content-Disposition"), ARTIFACT_DEFAULT_FILENAMES[kind]),
+  );
+}
+
+export async function downloadRunWorkbooksBundle(
+  token: string,
+  tenantId: string,
+  runId: string,
+): Promise<void> {
+  const res = await fetch(buildApiPath(`/tenants/${tenantId}/runs/${runId}/downloads/bundle`), {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new ApiError("DOWNLOAD_FAILED", "Workbook bundle download failed.", res.status);
+  }
+  const blob = await res.blob();
+  triggerBlobDownload(
+    blob,
+    filenameFromContentDisposition(
+      res.headers.get("Content-Disposition"),
+      `ECL_${runId}_PD_LGD_EAD_workbooks.zip`,
+    ),
   );
 }
 
@@ -297,13 +376,10 @@ export async function downloadTemplate(
   tenantId: string,
   kind: "PD" | "LGD" | "EAD",
 ): Promise<void> {
-  const res = await fetch(
-    `${getPublicApiUrl()}/api/v1/tenants/${tenantId}/templates/${kind}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: "include",
-    },
-  );
+  const res = await fetch(buildApiPath(`/tenants/${tenantId}/templates/${kind}`), {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
+  });
   if (!res.ok) {
     throw new ApiError("DOWNLOAD_FAILED", "Template download failed.", res.status);
   }
@@ -332,8 +408,8 @@ export async function deleteUpload(
 
 // ── XHR file upload with progress ─────────────────────────────────────────
 
-export async function uploadRunFile(
-  token: string,
+function uploadRunFileOnce(
+  authToken: string,
   tenantId: string,
   runId: string,
   kind: "PD" | "LGD" | "EAD",
@@ -342,6 +418,16 @@ export async function uploadRunFile(
 ): Promise<UploadResultRaw> {
   return new Promise<UploadResultRaw>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const timeoutId = setTimeout(() => {
+      xhr.abort();
+      reject(
+        new ApiError(
+          "TIMEOUT",
+          "Upload is taking longer than expected. Check your connection and try again.",
+          408,
+        ),
+      );
+    }, UPLOAD_TIMEOUT_MS);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
@@ -350,6 +436,7 @@ export async function uploadRunFile(
     };
 
     xhr.onload = () => {
+      clearTimeout(timeoutId);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const body = JSON.parse(xhr.responseText);
@@ -357,25 +444,72 @@ export async function uploadRunFile(
         } catch {
           reject(new ApiError("PARSE_ERROR", "Invalid upload response.", xhr.status));
         }
-      } else {
-        let detail = "Upload failed.";
-        try {
-          detail = JSON.parse(xhr.responseText)?.detail ?? detail;
-        } catch { /* ignore */ }
-        reject(new ApiError("UPLOAD_FAILED", detail, xhr.status));
+        return;
       }
+
+      if (xhr.status === 401) {
+        reject(new ApiError("UNAUTHORIZED", "Session expired.", 401));
+        return;
+      }
+
+      let detail = "Upload failed.";
+      let code = "UPLOAD_FAILED";
+      try {
+        const parsed = JSON.parse(xhr.responseText);
+        detail = parsed?.detail ?? detail;
+        code = parsed?.code ?? code;
+      } catch {
+        /* ignore */
+      }
+      reject(new ApiError(code, detail, xhr.status));
     };
 
     xhr.onerror = () => {
-      reject(new ApiError("NETWORK_ERROR", "Network error during upload.", 0));
+      clearTimeout(timeoutId);
+      reject(
+        new ApiError(
+          "NETWORK_ERROR",
+          "We couldn't upload your file. Check your connection and try again.",
+          0,
+        ),
+      );
     };
 
-    xhr.open("POST", `${getPublicApiUrl()}/api/v1/tenants/${tenantId}/runs/${runId}/uploads`);
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.onabort = () => {
+      clearTimeout(timeoutId);
+    };
+
+    xhr.open("POST", buildApiPath(`/tenants/${tenantId}/runs/${runId}/uploads`));
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("Authorization", `Bearer ${authToken}`);
 
     const form = new FormData();
     form.append("kind", kind);
     form.append("file", file);
     xhr.send(form);
   });
+}
+
+export async function uploadRunFile(
+  token: string,
+  tenantId: string,
+  runId: string,
+  kind: "PD" | "LGD" | "EAD",
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<UploadResultRaw> {
+  try {
+    return await uploadRunFileOnce(token, tenantId, runId, kind, file, onProgress);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "UNAUTHORIZED" && typeof window !== "undefined") {
+      const newToken = await refreshAccessToken();
+      if (!newToken) {
+        const { signOut } = await import("next-auth/react");
+        await signOut({ redirectTo: "/sign-in" });
+        throw new ApiError("UNAUTHORIZED", "Your session has expired. Sign in again to continue.", 401);
+      }
+      return uploadRunFileOnce(newToken, tenantId, runId, kind, file, onProgress);
+    }
+    throw err;
+  }
 }
