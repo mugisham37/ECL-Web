@@ -1,5 +1,6 @@
 "use client";
 
+import { useServerInsertedHTML } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -13,6 +14,7 @@ import {
 } from "react";
 
 const STORAGE_KEY = "theme";
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("theme")||"light";document.documentElement.setAttribute("data-theme",t);document.documentElement.style.colorScheme=t==="dark"?"dark":"light"}catch(e){}})();`;
 const THEMES = ["light", "dark"] as const;
 
 interface ThemeContextValue {
@@ -52,6 +54,10 @@ function disableTransitions() {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<string | undefined>(undefined);
+
+  useServerInsertedHTML(() => (
+    <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+  ));
 
   useEffect(() => {
     try {
