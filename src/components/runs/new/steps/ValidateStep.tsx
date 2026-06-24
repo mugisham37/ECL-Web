@@ -7,10 +7,16 @@ import { ValidationSummary } from "../ValidationSummary";
 import { ValidationFileItem } from "../ValidationFileItem";
 import { useRunWizard } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
-import { validateRun, uploadRunFile, deleteUpload } from "@/lib/api/runs";
+import {
+  validateRun,
+  uploadRunFile,
+  deleteUpload,
+  downloadTemplate,
+  checkBackendAvailable,
+} from "@/lib/api/runs";
 import { mapValidationResult } from "@/lib/api/mappers";
 import { formatApiError } from "@/lib/api/format-api-error";
-import type { UploadedFile, ValidationFileResult } from "@/lib/new-run-types";
+import type { UploadedFile, ValidationFileResult, FileInputType } from "@/lib/new-run-types";
 
 function collectUploadedFiles(state: {
   pdFiles: UploadedFile[];
@@ -24,6 +30,14 @@ function collectUploadedFiles(state: {
   ];
 }
 
+function collectWarningIds(
+  fileResults: ValidationFileResult[],
+): string[] {
+  return fileResults.flatMap((fr) =>
+    fr.issues.filter((i) => i.level === "warn").map((i) => i.id),
+  );
+}
+
 export function ValidateStep() {
   const { state, dispatch } = useRunWizard();
   const { token, tenantId } = useApiSession();
@@ -35,6 +49,25 @@ export function ValidateStep() {
     dispatch({ type: "START_VALIDATING" });
 
     const uploadedFiles = collectUploadedFiles(state);
+
+    const backendUp = await checkBackendAvailable();
+    if (!backendUp) {
+      dispatch({
+        type: "SET_VALIDATION_RESULT",
+        result: {
+          status: "blocking",
+          summary: "We couldn't connect to the service",
+          subSummary: "The application is temporarily unavailable.",
+          fileResults: [],
+          requestError: {
+            code: "NETWORK_ERROR",
+            hint: "Check your internet connection and try again. If the problem continues, contact your administrator.",
+            isServiceUnavailable: true,
+          },
+        },
+      });
+      return;
+    }
 
     try {
       const raw = await validateRun(token, tenantId, state.runId, {
@@ -55,6 +88,7 @@ export function ValidateStep() {
             code: formatted.code,
             status: formatted.status,
             hint: formatted.hint,
+            isServiceUnavailable: formatted.isServiceUnavailable,
           },
         },
       });
@@ -96,11 +130,12 @@ export function ValidateStep() {
         type: "UPDATE_FILE_STATUS",
         id: file.id,
         status: "ok",
-        sheets: result.sheet_count ?? 0,
+        sheets: result.sheet_count ?? result.sheetCount ?? 0,
         hash: result.sha256 ? result.sha256.slice(0, 4) + "…" + result.sha256.slice(-4) : "—",
         backendUploadId: result.id,
       });
       dispatch({ type: "CLEAR_VALIDATION_RESULT" });
+      dispatch({ type: "SET_ACCEPTED_WARNING_IDS", ids: [] });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Re-upload failed";
       dispatch({ type: "UPDATE_FILE_STATUS", id: file.id, status: "error", errorMessage: msg });
@@ -109,8 +144,32 @@ export function ValidateStep() {
     }
   }
 
+  async function handleDownloadTemplate(kind: FileInputType) {
+    if (!token || !tenantId) return;
+    try {
+      await downloadTemplate(token, tenantId, kind);
+    } catch {
+      /* download errors surface via browser */
+    }
+  }
+
+  function handleAcceptAllWarnings() {
+    if (!state.validationResult) return;
+    dispatch({
+      type: "SET_ACCEPTED_WARNING_IDS",
+      ids: collectWarningIds(state.validationResult.fileResults),
+    });
+    dispatch({ type: "CLEAR_VALIDATION_RESULT" });
+  }
+
   const uploadedFiles = collectUploadedFiles(state);
   const showRequestRetry = !!state.validationResult?.requestError;
+  const warningIds = state.validationResult
+    ? collectWarningIds(state.validationResult.fileResults)
+    : [];
+  const allWarningsAccepted =
+    warningIds.length > 0 &&
+    warningIds.every((id) => state.acceptedWarningIds.includes(id));
 
   return (
     <div>
@@ -148,7 +207,10 @@ export function ValidateStep() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
-            <ValidationSummary result={state.validationResult} />
+            <ValidationSummary
+              result={state.validationResult}
+              onDownloadTemplate={handleDownloadTemplate}
+            />
 
             {state.validationResult.fileResults.map((result) => (
               <ValidationFileItem
@@ -157,6 +219,7 @@ export function ValidateStep() {
                 zoneLabel={result.file.type}
                 onReupload={(newFile) => handleReupload(result, newFile)}
                 isReuploading={reuploadingId === result.file.id}
+                onDownloadTemplate={() => handleDownloadTemplate(result.file.type)}
               />
             ))}
 
@@ -172,12 +235,37 @@ export function ValidateStep() {
               </div>
             )}
 
-            {state.validationResult.status === "warn" && (
+            {state.validationResult.status === "warn" && warningIds.length > 0 && (
               <div className="callout callout-info" style={{ marginTop: "var(--sp-4)" }}>
                 <Info size={15} className="ic" aria-hidden="true" />
-                <span style={{ fontSize: "var(--fs-body)", color: "var(--text)" }}>
-                  Warnings won&apos;t block your run, but blocking errors must be fixed and re-uploaded before you can continue.
-                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "var(--fs-body)", color: "var(--text)", marginBottom: 8 }}>
+                    Warnings won&apos;t block your run, but you must review them before continuing.
+                  </div>
+                  <label
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      fontSize: "var(--fs-body)",
+                      color: "var(--text)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={allWarningsAccepted}
+                      onChange={(e) =>
+                        e.target.checked
+                          ? handleAcceptAllWarnings()
+                          : (dispatch({ type: "SET_ACCEPTED_WARNING_IDS", ids: [] }),
+                            dispatch({ type: "CLEAR_VALIDATION_RESULT" }))
+                      }
+                      style={{ accentColor: "var(--accent)", width: 16, height: 16 }}
+                    />
+                    I have reviewed the warnings and want to continue
+                  </label>
+                </div>
               </div>
             )}
 
@@ -187,7 +275,10 @@ export function ValidateStep() {
               <div style={{ marginTop: "var(--sp-4)", display: "flex", justifyContent: "flex-end" }}>
                 <button
                   type="button"
-                  onClick={() => dispatch({ type: "CLEAR_VALIDATION_RESULT" })}
+                  onClick={() => {
+                    dispatch({ type: "CLEAR_VALIDATION_RESULT" });
+                    void runValidation();
+                  }}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     height: 30, padding: "0 12px",
