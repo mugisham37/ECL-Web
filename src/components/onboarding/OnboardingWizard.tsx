@@ -169,9 +169,13 @@ interface OnboardingWizardProps {
 }
 
 export function OnboardingWizard({ userName, orgName }: OnboardingWizardProps) {
+  const { data: session } = useSession();
+  const resolvedUserName = userName ?? session?.user?.name ?? "";
+  const resolvedOrgName = orgName ?? session?.user?.tenantName ?? "";
+
   return (
-    <WizardProvider initialName={orgName ?? ""}>
-      <WizardInner userName={userName} orgName={orgName} />
+    <WizardProvider initialName={resolvedOrgName}>
+      <WizardInner userName={resolvedUserName} orgName={resolvedOrgName} />
     </WizardProvider>
   );
 }
