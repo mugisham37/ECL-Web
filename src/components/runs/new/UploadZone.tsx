@@ -23,26 +23,33 @@ interface UploadZoneProps {
   onAdd: (file: File) => void;
   onRemove: (id: string) => void;
   onDownloadTemplate?: () => void;
+  uploadProgress?: Record<string, number>;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }: UploadZoneProps) {
+export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, uploadProgress }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [rejectMessage, setRejectMessage] = useState<string | null>(null);
   const inputId = useId();
   const meta = ZONE_META[type];
   const isReplace = !meta.multi && files.length > 0;
 
   function addFiles(picked: File[]) {
     const excelFiles = picked.filter(isExcelFile);
+    const rejected = picked.length - excelFiles.length;
+    if (rejected > 0) {
+      setRejectMessage("Only Excel workbooks (.xlsx) are accepted.");
+      setTimeout(() => setRejectMessage(null), 4000);
+    }
+    if (excelFiles.length === 0) return;
     if (meta.multi) {
       excelFiles.forEach(onAdd);
-    } else if (excelFiles.length > 0) {
+    } else {
       onAdd(excelFiles[0]);
     }
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     addFiles(Array.from(e.target.files ?? []));
-    // Reset so the same file can be re-selected after removal
     e.target.value = "";
   }
 
@@ -54,7 +61,6 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
 
   return (
     <div className="upload-zone">
-      {/* Hidden file input — linked to drop zone label for reliable browse */}
       <input
         id={inputId}
         type="file"
@@ -65,7 +71,6 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
         tabIndex={-1}
       />
 
-      {/* Zone header */}
       <div className="uz-head">
         <span className="uz-badge" aria-label={`${type} input type`}>{type}</span>
         <div className="uz-meta">
@@ -105,8 +110,12 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
         </button>
       </div>
 
-      {/* Zone body */}
       <div className="uz-body">
+        {rejectMessage && (
+          <p style={{ fontSize: "var(--fs-caption)", color: "var(--danger)", marginBottom: 8 }}>
+            {rejectMessage}
+          </p>
+        )}
         <label
           htmlFor={inputId}
           className={`dz${isDragOver ? " over" : ""}`}
@@ -134,11 +143,15 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate }:
           </span>
         </label>
 
-        {/* Uploaded files */}
         <div className="uz-files">
           <AnimatePresence initial={false}>
             {files.map((file) => (
-              <UploadFilePill key={file.id} file={file} onRemove={onRemove} />
+              <UploadFilePill
+                key={file.id}
+                file={file}
+                progress={uploadProgress?.[file.id]}
+                onRemove={onRemove}
+              />
             ))}
           </AnimatePresence>
         </div>
