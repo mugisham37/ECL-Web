@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
-import { AuthProvider } from "@/providers/AuthProvider";
-import { QueryProvider } from "@/providers/QueryProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { fontVariables } from "@/lib/fonts";
+import { ServiceWorkerCleanup } from "@/components/shared/ServiceWorkerCleanup";
 
 export const metadata: Metadata = {
   title: "ECL Platform — IFRS 9 Expected Credit Loss",
@@ -17,20 +16,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={fontVariables}>
       <body className="min-h-full antialiased" suppressHydrationWarning>
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme")||"light";document.documentElement.setAttribute("data-theme",t);document.documentElement.style.colorScheme=t==="dark"?"dark":"light"}catch(e){}})();`,
-          }}
-        />
-        <AuthProvider>
-          <QueryProvider>
-            <ThemeProvider>{children}</ThemeProvider>
-          </QueryProvider>
-        </AuthProvider>
+        <ServiceWorkerCleanup />
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
