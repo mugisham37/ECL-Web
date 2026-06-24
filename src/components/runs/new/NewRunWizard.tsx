@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { RunWizardProvider, useRunWizard, canContinueFrom, isUploadReady } from "./RunWizardContext";
@@ -38,6 +39,19 @@ const slideVariants = {
 };
 
 // ── Inner component (reads context) ───────────────────────────────────────
+
+function ReviewerRedirect() {
+  const router = useRouter();
+  const { role, isLoading } = useApiSession();
+
+  useEffect(() => {
+    if (!isLoading && role === "reviewer") {
+      router.replace("/runs");
+    }
+  }, [role, isLoading, router]);
+
+  return null;
+}
 
 function WizardInner() {
   const { state, dispatch } = useRunWizard();
@@ -135,20 +149,10 @@ function WizardInner() {
 
 // ── Public export — wraps inner with the state provider ───────────────────
 
-interface NewRunWizardProps {
-  initialRunId?: string | null;
-  initialRunInitError?: string | null;
-}
-
-export function NewRunWizard({
-  initialRunId = null,
-  initialRunInitError = null,
-}: NewRunWizardProps) {
+export function NewRunWizard() {
   return (
-    <RunWizardProvider
-      initialRunId={initialRunId}
-      initialRunInitError={initialRunInitError}
-    >
+    <RunWizardProvider>
+      <ReviewerRedirect />
       <WizardInner />
     </RunWizardProvider>
   );
