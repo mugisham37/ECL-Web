@@ -2,17 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Local font files — no CDN dependency */
-@import '@fontsource-variable/hanken-grotesk';
-@import '@fontsource/spectral/400.css';
-@import '@fontsource/spectral/400-italic.css';
-@import '@fontsource/spectral/500.css';
-@import '@fontsource/spectral/500-italic.css';
-@import '@fontsource/spectral/600.css';
-@import '@fontsource/spectral/600-italic.css';
-@import '@fontsource/geist-mono/400.css';
-@import '@fontsource/geist-mono/500.css';
-
 /* Teach Tailwind's dark: prefix to match data-theme="dark" attribute */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
@@ -78,9 +67,9 @@
   --chart-5: #B364C9;  --chart-6: #2C9A63;  --chart-7: #DD6A52;  --chart-8: #7A85A6;
 
   /* Typography */
-  --font-ui:      "Hanken Grotesk Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Spectral", Georgia, "Times New Roman", serif;
-  --font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-ui:      var(--font-ui-family), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display-family), Georgia, "Times New Roman", serif;
+  --font-mono:    var(--font-mono-family), "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Fluid type scale */
   --fs-display: clamp(1.75rem, 1.30rem + 1.6vw, 2.00rem);
