@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ResultsHeader } from "./ResultsHeader";
+import { ResultsHeader, type ExportKind } from "./ResultsHeader";
 import { ResultsBreadcrumb } from "./ResultsBreadcrumb";
 import { ResultsToolbar } from "./ResultsToolbar";
 import { PortfolioView } from "./portfolio/PortfolioView";
@@ -13,7 +13,9 @@ import { ResultsEmptyState } from "./shared/ResultsEmptyState";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { useApiSession } from "@/hooks/use-api-session";
 import { fetchPortfolio, fetchSegmentResults, fetchLoanResults } from "@/lib/api/results";
-import { fetchRuns, fetchRun } from "@/lib/api/runs";
+import { fetchRuns, fetchRun, downloadRunArtifactFile, downloadRunWorkbooksBundle } from "@/lib/api/runs";
+import { exportCurrentViewCsv } from "@/lib/export-results-csv";
+import type { RunListItem } from "@/lib/runs-types";
 import {
   mapPortfolio,
   mapLoanDetail,
@@ -46,13 +48,15 @@ interface ResultsExplorerProps {
 
 export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   const router = useRouter();
-  const { tenantId } = useApiSession();
+  const { tenantId, token } = useApiSession();
   const [level,   setLevel]   = useState<DrillLevel>("portfolio");
   const [curSeg,  setCurSeg]  = useState("");
   const [curLoan, setCurLoan] = useState("");
   const [filter,  setFilter]  = useState<ExplorerFilter>(defaultFilter);
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [runId,   setRunId]   = useState(initialRunId ?? "");
+  const [exportBusy, setExportBusy] = useState<ExportKind | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const runsQuery = useAuthedQuery(
     ["runs", tenantId, "results-switcher"],
@@ -115,15 +119,20 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
     if (match) setRunId(match.fullId);
   }, [runId, initialRunId, portfolioQuery.data, runs]);
 
-  function handleRunSelect(fullId: string) {
-    if (fullId === runId) return;
-    setRunId(fullId);
-    setLevel("portfolio");
-    setCurSeg("");
-    setCurLoan("");
-    setFilter(defaultFilter);
-    router.replace(`/results?run_id=${encodeURIComponent(fullId)}`, { scroll: false });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  function handleRunSelect(run: RunListItem) {
+    if (run.status === "success") {
+      if (run.fullId === runId) return;
+      setRunId(run.fullId);
+      setLevel("portfolio");
+      setCurSeg("");
+      setCurLoan("");
+      setFilter(defaultFilter);
+      router.replace(`/results?run_id=${encodeURIComponent(run.fullId)}`, { scroll: false });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    router.push(`/runs/${run.fullId}`);
   }
 
   function drill(lvl: DrillLevel) {
@@ -206,6 +215,74 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
       portfolioSegments.length === 0 &&
       level === "portfolio");
 
+  const currentRunStatus =
+    runDetail?.status ??
+    runs.find((run) => run.fullId === runId)?.status ??
+    null;
+
+  const exportViewLoading =
+    (level === "portfolio" && isPortfolioLoading) ||
+    (level === "segment" && isSegmentLoading) ||
+    (level === "loan" && isLoanLoading);
+
+  const exportDisabled =
+    !runId ||
+    !token ||
+    !tenantId ||
+    currentRunStatus !== "success" ||
+    portfolioUnavailable ||
+    exportViewLoading ||
+    (level === "loan" && !currentLoan) ||
+    (level === "segment" && !curSeg);
+
+  async function handleExportFullWorkbook() {
+    if (!token || !tenantId || !runId || exportDisabled) return;
+    setExportError(null);
+    setExportBusy("summary");
+    try {
+      await downloadRunArtifactFile(token, tenantId, runId, "ECL_SUMMARY");
+    } catch {
+      setExportError("Could not download the full results workbook. Try again in a moment.");
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  async function handleExportWorkbooksBundle() {
+    if (!token || !tenantId || !runId || exportDisabled) return;
+    setExportError(null);
+    setExportBusy("bundle");
+    try {
+      await downloadRunWorkbooksBundle(token, tenantId, runId);
+    } catch {
+      setExportError("Could not download the PD / LGD / EAD workbooks. Try again in a moment.");
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  function handleExportCurrentView() {
+    if (exportDisabled) return;
+    setExportError(null);
+    setExportBusy("csv");
+    try {
+      exportCurrentViewCsv({
+        level,
+        runId: displayContext.runId || runId,
+        currency,
+        segments: portfolioSegments,
+        segmentName: curSeg,
+        loans: segmentLoans,
+        loan: currentLoan,
+        filter,
+      });
+    } catch {
+      setExportError("Could not export the current view as CSV.");
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
   return (
     <div ref={wrapRef} data-density={density}>
       <motion.div
@@ -220,11 +297,33 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
           currentRunFullId={runId}
           runsLoading={runsQuery.isLoading}
           density={density}
+          exportDisabled={exportDisabled}
+          exportBusy={exportBusy}
           onDensityToggle={() =>
             setDensity((d) => (d === "compact" ? "comfortable" : "compact"))
           }
           onRunSelect={handleRunSelect}
+          onExportCurrentView={handleExportCurrentView}
+          onExportFullWorkbook={handleExportFullWorkbook}
+          onExportWorkbooksBundle={handleExportWorkbooksBundle}
         />
+
+        {exportError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 8,
+              padding: "8px 12px",
+              borderRadius: "var(--r-sm)",
+              border: "1px solid var(--danger-border, #fecaca)",
+              background: "var(--danger-bg, #fef2f2)",
+              color: "var(--danger, #b91c1c)",
+              fontSize: "var(--fs-caption)",
+            }}
+          >
+            {exportError}
+          </div>
+        )}
 
         {/* Breadcrumb */}
         <ResultsBreadcrumb
