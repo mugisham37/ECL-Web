@@ -31,8 +31,8 @@ export function BackendUnavailableNotice({
           <p className="text-sm font-medium">{title}</p>
           <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
             {isNetwork
-              ? "ECL-Server is not reachable. Start the backend on port 8000, then retry."
-              : (error?.message ?? "The API request failed. Try again in a moment.")}
+              ? "The service is temporarily unavailable. Check your connection and try again."
+              : (error?.message ?? "The request failed. Try again in a moment.")}
           </p>
           {onRetry && (
             <button
