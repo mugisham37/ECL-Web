@@ -13,11 +13,13 @@ const STATUS_ICONS = {
 
 interface UploadFilePillProps {
   file: UploadedFile;
+  progress?: number;
   onRemove: (id: string) => void;
 }
 
-export function UploadFilePill({ file, onRemove }: UploadFilePillProps) {
+export function UploadFilePill({ file, progress, onRemove }: UploadFilePillProps) {
   const { Icon, cls } = STATUS_ICONS[file.status];
+  const showProgress = file.status === "scan" && progress != null && progress > 0;
 
   return (
     <motion.div
@@ -36,12 +38,34 @@ export function UploadFilePill({ file, onRemove }: UploadFilePillProps) {
           <div className="fp-d">
             {file.status === "error" && file.errorMessage
               ? <span style={{ color: "var(--danger)" }}>{file.errorMessage}</span>
-              : <>{file.size} · {file.sheets} sheet{file.sheets !== 1 ? "s" : ""}</>
+              : showProgress
+                ? <>Uploading… {progress}%</>
+                : <>{file.size} · {file.sheets} sheet{file.sheets !== 1 ? "s" : ""}</>
             }
             {file.status === "warn" && (
               <span style={{ color: "var(--warning)", marginLeft: 6 }}>· needs review</span>
             )}
           </div>
+          {showProgress && (
+            <div
+              style={{
+                marginTop: 6,
+                height: 4,
+                borderRadius: 2,
+                background: "var(--surface-sunken)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${progress}%`,
+                  background: "var(--accent)",
+                  transition: "width 0.2s ease",
+                }}
+              />
+            </div>
+          )}
         </div>
         <button
           onClick={() => onRemove(file.id)}
