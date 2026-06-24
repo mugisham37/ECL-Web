@@ -20,6 +20,17 @@ interface ApiEnvelope<T> {
   message?: string;
 }
 
+export const SERVER_FETCH_TIMEOUT_MS = 10_000;
+export const SERVER_FETCH_WRITE_TIMEOUT_MS = 15_000;
+
+function defaultServerTimeoutMs(method?: string): number | undefined {
+  if (typeof window !== "undefined") return undefined;
+  if (method && method !== "GET" && method !== "HEAD") {
+    return SERVER_FETCH_WRITE_TIMEOUT_MS;
+  }
+  return SERVER_FETCH_TIMEOUT_MS;
+}
+
 // ── 401 refresh queue (client-side only) ──────────────────────────────────
 
 let isRefreshing = false;
@@ -51,6 +62,7 @@ export async function apiFetch<T>(
   options: RequestInit & { token?: string; timeoutMs?: number } = {},
 ): Promise<T> {
   const { token, headers: extraHeaders, timeoutMs, ...rest } = options;
+  const effectiveTimeoutMs = timeoutMs ?? defaultServerTimeoutMs(rest.method);
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
   };
@@ -61,10 +73,10 @@ export async function apiFetch<T>(
     headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
   }
 
-  const controller = timeoutMs ? new AbortController() : null;
+  const controller = effectiveTimeoutMs ? new AbortController() : null;
   const timeoutId =
-    controller && timeoutMs
-      ? setTimeout(() => controller.abort(), timeoutMs)
+    controller && effectiveTimeoutMs
+      ? setTimeout(() => controller.abort(), effectiveTimeoutMs)
       : null;
 
   let res: Response;
