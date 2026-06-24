@@ -94,7 +94,7 @@ export function TenantsSection({
 
       {/* table */}
       <div className="op-table-wrap admin-table-wrap">
-        <table className="tbl" style={{ width: "100%" }}>
+        <table className="tbl runs-table" style={{ width: "100%" }}>
           <thead>
             <tr>
               <th>Tenant</th>
@@ -122,7 +122,6 @@ export function TenantsSection({
                 return (
                   <motion.tr
                     key={t.id}
-                    style={{ cursor: "pointer" }}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.12, delay: i * 0.03 }}
