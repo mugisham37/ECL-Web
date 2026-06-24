@@ -1,5 +1,5 @@
-import { apiFetch, ApiError } from "./client";
-import { getPublicApiUrl } from "@/lib/env";
+import { apiFetch, ApiError, SERVER_FETCH_TIMEOUT_MS } from "./client";
+import { getApiUrl, getPublicApiUrl } from "@/lib/env";
 
 // ── Raw backend shapes (camelCase — matches RunListItemOut / RunDetailOut) ──
 
@@ -151,22 +151,53 @@ export async function fetchRuns(
   if (params?.status && params.status !== "all") qs.set("status", params.status);
   if (params?.search) qs.set("search", params.search);
   const query = qs.toString() ? `?${qs.toString()}` : "";
-  const res = await fetch(`${getPublicApiUrl()}/api/v1/tenants/${tenantId}/runs${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: "include",
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new ApiError(
-      body.code ?? "API_ERROR",
-      body.detail ?? "Request failed.",
-      res.status,
+
+  const controller =
+    typeof window === "undefined" ? new AbortController() : null;
+  const timeoutId =
+    controller &&
+    setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(
+      `${getApiUrl()}/api/v1/tenants/${tenantId}/runs${query}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+        signal: controller?.signal,
+      },
     );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new ApiError(
+        body.code ?? "API_ERROR",
+        body.detail ?? "Request failed.",
+        res.status,
+      );
+    }
+    return {
+      items: (body.data ?? []) as RunListItemRaw[],
+      meta: body.meta ?? { page: 1, per_page: 50, total: 0 },
+    };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(
+        "TIMEOUT",
+        "The request timed out. Check that ECL-Server is running.",
+        408,
+      );
+    }
+    if (err instanceof TypeError) {
+      throw new ApiError(
+        "NETWORK_ERROR",
+        "Could not reach the API server. Check that ECL-Server is running on port 8000.",
+        0,
+      );
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
-  return {
-    items: (body.data ?? []) as RunListItemRaw[],
-    meta: body.meta ?? { page: 1, per_page: 50, total: 0 },
-  };
 }
 
 export async function fetchRun(
