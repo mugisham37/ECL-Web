@@ -13,7 +13,7 @@ interface RunSwitcherProps {
   currentPeriod: string;
   currentRunId: string;
   isLoading?: boolean;
-  onSelect: (fullId: string) => void;
+  onSelect: (run: RunListItem) => void;
 }
 
 const FILTER_OPTIONS: { value: RunFilter; label: string }[] = [
@@ -28,6 +28,16 @@ function matchesFilter(run: RunListItem, filter: RunFilter): boolean {
   if (filter === "all") return true;
   if (filter === "running") return run.status === "running" || run.status === "queued";
   return run.status === filter;
+}
+
+function isResultsRun(status: RunListItem["status"]): boolean {
+  return status === "success";
+}
+
+function actionLabel(status: RunListItem["status"]): string {
+  if (status === "success") return "View results";
+  if (status === "deleted") return "Unavailable";
+  return "Open run";
 }
 
 function formatEcl(run: RunListItem): string | null {
@@ -83,8 +93,8 @@ export function RunSwitcher({
   }, [runs, search, filter]);
 
   function handleSelect(run: RunListItem) {
-    if (run.status !== "success") return;
-    onSelect(run.fullId);
+    if (run.status === "deleted") return;
+    onSelect(run);
     setOpen(false);
   }
 
@@ -148,8 +158,8 @@ export function RunSwitcher({
             )}
             {!isLoading &&
               filteredRuns.map((run) => {
-                const isActive = run.fullId === currentRunFullId;
-                const selectable = run.status === "success";
+                const isActive = isResultsRun(run.status) && run.fullId === currentRunFullId;
+                const isDeleted = run.status === "deleted";
                 const ecl = formatEcl(run);
 
                 return (
@@ -157,9 +167,10 @@ export function RunSwitcher({
                     key={run.fullId}
                     type="button"
                     role="menuitem"
-                    className={`mp-item run-switch-item${isActive ? " active" : ""}${!selectable ? " disabled" : ""}`}
-                    disabled={!selectable}
+                    className={`mp-item run-switch-item${isActive ? " active" : ""}${isDeleted ? " disabled" : ""}${!isResultsRun(run.status) && !isDeleted ? " run-switch-item-nav" : ""}`}
+                    disabled={isDeleted}
                     aria-current={isActive ? "true" : undefined}
+                    title={actionLabel(run.status)}
                     onClick={() => handleSelect(run)}
                   >
                     <div className="run-switch-item-main">
@@ -171,6 +182,9 @@ export function RunSwitcher({
                         <span className="mono">{run.id}</span>
                         <span>{run.createdAt}</span>
                         {ecl && <span>{ecl}</span>}
+                        {!isResultsRun(run.status) && !isDeleted && (
+                          <span className="run-switch-item-action">{actionLabel(run.status)}</span>
+                        )}
                       </div>
                     </div>
                     <RunStatusPill status={run.status} />
