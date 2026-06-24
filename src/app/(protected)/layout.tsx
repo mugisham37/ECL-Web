@@ -1,14 +1,18 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { AuthProvider } from "@/providers/AuthProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
+import { BackendStatusBanner } from "@/components/shared/BackendStatusBanner";
 
-export default async function ProtectedLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/sign-in");
-  }
-  return <>{children}</>;
+  return (
+    <AuthProvider>
+      <QueryProvider>
+        {children}
+        <BackendStatusBanner />
+      </QueryProvider>
+    </AuthProvider>
+  );
 }
