@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { RunWizardProvider, useRunWizard, canContinueFrom, isUploadReady } from "./RunWizardContext";
+import { RunWizardProvider, useRunWizard, canContinueFrom, getFooterHint, isUploadReady } from "./RunWizardContext";
 import { RunWizardHeader } from "./RunWizardHeader";
 import { RunWizardStepper } from "./RunWizardStepper";
 import { RunWizardFooter } from "./RunWizardFooter";
@@ -131,6 +131,7 @@ function WizardInner() {
         <RunWizardFooter
           currentStep={step}
           canContinue={canContinueFrom(state)}
+          continueHint={getFooterHint(state)}
           onBack={handleBack}
           onCancel={handleCancel}
           onNext={handleNext}
