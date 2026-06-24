@@ -12,6 +12,7 @@ import { SaveBar } from "@/components/shared/SaveBar";
 import { ToastStack, makeToastId } from "@/components/shared/ToastStack";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
 import { useApiSession } from "@/hooks/use-api-session";
+import { formatRole } from "@/lib/api/mappers";
 import {
   fetchMembers,
   fetchSegments,
@@ -44,9 +45,10 @@ const FADE = {
   exit:    { opacity: 0 },
 };
 
-export function AdminView({ userRole = "Administrator" }: AdminViewProps) {
+export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
+  const { role, token, tenantId } = useApiSession();
+  const userRole = userRoleProp ?? formatRole(role ?? "administrator");
   const isAdmin = userRole === "Admin" || userRole === "Administrator";
-  const { token, tenantId } = useApiSession();
 
   const [activeSection, setActiveSection] = useState<AdminSection>("members");
   const [members,    setMembers]    = useState<Member[]>([]);
