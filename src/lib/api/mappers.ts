@@ -623,7 +623,16 @@ export function mapEngineProgress(raw: EngineProgressRaw | null | undefined): Co
 
 export function mapValidationResult(
   raw: ValidationResultRaw,
-  uploadedFiles: Array<{ id: string; name: string; type: "PD" | "LGD" | "EAD"; size: string; sheets: number; hash: string; status: import("@/lib/new-run-types").FileStatus }>,
+  uploadedFiles: Array<{
+    id: string;
+    name: string;
+    type: "PD" | "LGD" | "EAD";
+    size: string;
+    sheets: number;
+    hash: string;
+    status: import("@/lib/new-run-types").FileStatus;
+    backendUploadId?: string;
+  }>,
 ): import("@/lib/new-run-types").ValidationResult {
   const blockingCount =
     raw.blocking_count ??
@@ -634,19 +643,29 @@ export function mapValidationResult(
 
   const fileResults = uploadedFiles.map((f) => {
     const fileIssues = raw.issues
-      .filter((issue) => !issue.kind || issue.kind === f.type)
+      .filter(
+        (issue) =>
+          issue.upload_id != null
+            ? issue.upload_id === f.backendUploadId
+            : !issue.kind || issue.kind === f.type,
+      )
       .map((issue: ValidationIssueRaw) => ({
         id: issue.id,
         level: issue.level === "block" ? ("block" as const) : ("warn" as const),
         title: issue.title,
         location: issue.location ?? "—",
         fix: issue.fix ?? "",
+        category: issue.category ?? null,
       }));
     return {
       file: f,
       issues: fileIssues,
     };
   });
+
+  const hasTemplateFormatIssues = raw.issues.some(
+    (issue) => issue.category === "template_format",
+  );
 
   const summary =
     raw.summary ??
@@ -673,6 +692,7 @@ export function mapValidationResult(
     detectedSegments: detected,
     blockingCount,
     warningCount,
+    hasTemplateFormatIssues,
   };
 }
 
