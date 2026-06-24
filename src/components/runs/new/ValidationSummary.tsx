@@ -1,7 +1,12 @@
 import { Check, AlertTriangle, X } from "lucide-react";
 import type { ValidationResult } from "@/lib/new-run-types";
 
-export function ValidationSummary({ result }: { result: ValidationResult }) {
+interface ValidationSummaryProps {
+  result: ValidationResult;
+  onDownloadTemplate?: (kind: "PD" | "LGD" | "EAD") => void;
+}
+
+export function ValidationSummary({ result, onDownloadTemplate }: ValidationSummaryProps) {
   const isOk = result.status === "ok";
   const isWarn = result.status === "warn";
   const isRequestFailure = !!result.requestError;
@@ -12,6 +17,11 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
   const showStats =
     !isRequestFailure &&
     (result.blockingCount !== undefined || result.warningCount !== undefined);
+
+  const showTemplateActions =
+    !isRequestFailure &&
+    result.hasTemplateFormatIssues &&
+    onDownloadTemplate;
 
   return (
     <div className={`val-summary ${cls}`}>
@@ -46,16 +56,32 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         {result.requestError && (
           <div className="val-request-error">
             <p className="val-request-hint">{result.requestError.hint}</p>
-            {(result.requestError.code || result.requestError.status) && (
-              <p className="val-request-meta">
-                {result.requestError.code && (
-                  <span>Code: {result.requestError.code}</span>
-                )}
-                {result.requestError.status ? (
-                  <span>HTTP {result.requestError.status}</span>
-                ) : null}
-              </p>
-            )}
+          </div>
+        )}
+
+        {showTemplateActions && (
+          <div className="val-template-actions" style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(["PD", "LGD", "EAD"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => onDownloadTemplate!(kind)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: 28,
+                  padding: "0 10px",
+                  background: "none",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--r-sm)",
+                  fontSize: "var(--fs-caption)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                }}
+              >
+                Download {kind} template
+              </button>
+            ))}
           </div>
         )}
 
