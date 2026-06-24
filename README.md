@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ECL Web
 
-## Getting Started
+Next.js frontend for the ECL (Expected Credit Loss) platform.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- npm
+
+The backend (`ECL-Server`) is **optional for marketing pages** (`/`, `/pricing`, `/security`). Protected routes (`/dashboard`, `/runs`, etc.) load data client-side and require the backend to be running for live data.
+
+## Quick start
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in AUTH_SECRET, AUTH_URL, BACKEND_URL, NEXT_PUBLIC_API_URL
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Expected dev timings
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Step | Target |
+|------|--------|
+| `next dev` ready | < 3s |
+| First page load (`GET /`) | < 5s |
+| Warm restart + page load | < 1s ready, < 500ms page |
 
-## Learn More
+If startup takes minutes, see [Troubleshooting](#troubleshooting-slow-dev) below.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `.env.example` to `.env.local`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Purpose |
+|----------|---------|
+| `AUTH_SECRET` | NextAuth JWT encryption |
+| `AUTH_URL` | Canonical app URL (e.g. `http://localhost:3000`) |
+| `BACKEND_URL` | Server-side API base (e.g. `http://localhost:8000`) |
+| `NEXT_PUBLIC_API_URL` | Browser-accessible API base |
 
-## Deploy on Vercel
+Optional:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_RQ_DEVTOOLS` | Set to `1` to enable React Query Devtools in development |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start dev server (Turbopack) |
+| `npm run dev:clean` | Purge turbopack cache, then start dev |
+| `npm run cache:prune` | Remove `.next/dev/cache/turbopack` only |
+| `npm run cache:reset` | Remove entire `.next` directory |
+| `npm run build` | Production build (validates env first) |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript check |
+
+## Troubleshooting slow dev
+
+Dev startup is **not blocked by the backend**. Slow starts are almost always caused by Turbopack filesystem cache bloat or slow disk I/O on `.next/dev`.
+
+### Quick fixes
+
+1. **Prune the cache:**
+   ```bash
+   npm run cache:prune
+   npm run dev
+   ```
+
+2. **Full reset if still slow:**
+   ```bash
+   npm run cache:reset
+   npm run dev
+   ```
+
+3. **Use clean start shortcut:**
+   ```bash
+   npm run dev:clean
+   ```
+
+### Root causes
+
+- **Turbopack cache bloat** — `.next/dev/cache/turbopack` can grow to gigabytes and cause 40s+ compaction hangs. This project disables persistent FS cache (`turbopackFileSystemCacheForDev: false`) in `next.config.ts` to prevent recurrence.
+- **Slow filesystem** — If you see `Slow filesystem detected` in the terminal, check whether the project folder is under cloud sync (Google Drive, Dropbox, OneDrive, iCloud). Exclude `.next/` from sync or move the project to a local path like `~/Projects/ECL`.
+- **Antivirus scanning** — Realtime AV on `.next/dev/cache/turbopack` (thousands of small files) can slow I/O. Add the project `.next` folder to exclusions.
+
+### Phantom service worker / stale module errors
+
+If you see errors like `next-themes ... module factory is not available` even though this project uses a custom theme provider (not `next-themes`), a **stale browser cache or old service worker** is serving outdated JavaScript chunks.
+
+1. Hard-reload the page (Ctrl+Shift+R / Cmd+Shift+R)
+2. Clear site data in DevTools → Application → Storage
+3. Run `npm run cache:reset && npm run dev`
+
+The app automatically unregisters stale service workers on load and serves a self-removing `/sw.js` for legacy PWA registrations.
+
+### Phantom service worker
+
+If the browser requests `/sw.js`, it may be from an old PWA registration. The app serves an empty response at `/sw.js` to avoid triggering full compiles on cold start. Clear site data in DevTools if issues persist.
+
+## Architecture notes
+
+- **Marketing pages** — Static SSR, no backend calls at startup.
+- **Protected routes** — NextAuth JWT in middleware + shell layout; data fetched client-side via React Query after hydration.
+- **Backend dependency** — Required for login, onboarding, dashboard data, etc. Not required for `next dev` to start or for marketing pages to render. When the API is down, protected pages show a banner and inline notices instead of crashing.
+
+## Production
+
+```bash
+npm run build
+npm run start
+```
+
+Build output uses `output: "standalone"` for container deployment.
