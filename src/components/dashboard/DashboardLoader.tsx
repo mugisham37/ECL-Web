@@ -32,7 +32,7 @@ function buildSessionContext(session: NonNullable<ReturnType<typeof useSession>[
   const tenant = {
     id: session.user?.tenantId ?? "",
     name: session.user?.tenantName ?? "Workspace",
-    currency: "USD",
+    currency: session.user?.currency ?? "USD",
     role: formatRole(session.user?.role ?? "analyst") as
       | "Administrator"
       | "Analyst"
