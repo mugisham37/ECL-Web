@@ -47,7 +47,7 @@ export function SecuritySection({ token, onToast }: SecuritySectionProps) {
       <div className="set-card">
         <div className="set-card-head">
           <h3 id="security-sec-heading">Password</h3>
-          <p>Last changed 14 Apr 2026. Use a strong password you don't reuse.</p>
+          <p>Use a strong password you don&apos;t reuse elsewhere.</p>
         </div>
         <div className="set-card-body">
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)", maxWidth: 420 }} noValidate>
