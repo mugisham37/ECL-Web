@@ -1,6 +1,8 @@
 import { apiFetch } from "./client";
-import { mapNotifPrefs, mapSession, mapUserProfile } from "./mappers";
+import { mapNotifPrefs, mapSession, mapUserProfile, mapNotification } from "./mappers";
+import type { NotificationRaw } from "./mappers";
 import type { NotifPrefs, Session, UserProfile } from "@/lib/settings-types";
+import type { Notification } from "@/lib/dashboard-types";
 
 export async function fetchMe(token: string) {
   const data = await apiFetch<{ user: Parameters<typeof mapUserProfile>[0]["user"] }>("/me", { token });
@@ -79,4 +81,17 @@ export async function disableTotp(token: string, code: string) {
     token,
     body: JSON.stringify({ code }),
   });
+}
+
+export async function fetchNotifications(token: string): Promise<Notification[]> {
+  const data = await apiFetch<NotificationRaw[]>("/me/notifications", { token });
+  return (data ?? []).map(mapNotification);
+}
+
+export async function markNotificationRead(token: string, notificationId: string) {
+  await apiFetch(`/me/notifications/${notificationId}/read`, { method: "PATCH", token });
+}
+
+export async function markAllNotificationsRead(token: string) {
+  await apiFetch<{ message: string }>("/me/notifications/read-all", { method: "POST", token });
 }
