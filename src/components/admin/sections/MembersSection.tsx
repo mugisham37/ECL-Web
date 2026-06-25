@@ -13,10 +13,13 @@ export interface MemberActions {
   onDisable: (memberId: string) => Promise<void>;
   onEnable: (memberId: string) => Promise<void>;
   onRemove: (memberId: string) => Promise<void>;
+  onResendInvite?: (inviteId: string) => Promise<void>;
+  onRevokeInvite?: (inviteId: string) => Promise<void>;
 }
 
 interface MembersSectionProps {
   members: Member[];
+  tenantName?: string;
   onUpdate: (members: Member[]) => void;
   onToast: (msg: string, kind?: "success" | "info" | "danger") => void;
   actions?: MemberActions;
@@ -30,7 +33,7 @@ function initials(email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function MembersSection({ members, onUpdate, onToast, actions }: MembersSectionProps) {
+export function MembersSection({ members, tenantName = "workspace", onUpdate, onToast, actions }: MembersSectionProps) {
   const [modal, setModal] = useState<ModalKind>(null);
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -87,14 +90,31 @@ export function MembersSection({ members, onUpdate, onToast, actions }: MembersS
     }
   }
 
-  function handleResendInvite(m: Member) {
-    onToast(`Invite resent to ${m.email}.`, "info");
+  async function handleResendInvite(m: Member) {
+    try {
+      if (actions?.onResendInvite) {
+        await actions.onResendInvite(m.id);
+        onToast(`Invite resent to ${m.email}.`, "info");
+      } else {
+        onToast(`Invite resent to ${m.email}.`, "info");
+      }
+    } catch {
+      onToast("Failed to resend invite.", "danger");
+    }
   }
 
-  function handleRevokeInvite(index: number) {
+  async function handleRevokeInvite(index: number) {
     const m = members[index];
-    onUpdate(members.filter((_, i) => i !== index));
-    onToast("Invite revoked.", "info");
+    try {
+      if (actions?.onRevokeInvite) {
+        await actions.onRevokeInvite(m.id);
+      } else {
+        onUpdate(members.filter((_, i) => i !== index));
+      }
+      onToast("Invite revoked.", "info");
+    } catch {
+      onToast("Failed to revoke invite.", "danger");
+    }
   }
 
   async function confirmRemove() {
@@ -146,7 +166,7 @@ export function MembersSection({ members, onUpdate, onToast, actions }: MembersS
       <div className="sec-title-row">
         <div>
           <h2 id="members-heading">Members &amp; roles</h2>
-          <p className="desc">People with access to Savanna Bank's workspace. Admins manage settings, Analysts run ECLs, Reviewers read results.</p>
+          <p className="desc">People with access to {tenantName}&apos;s workspace. Admins manage settings, Analysts run ECLs, Reviewers read results.</p>
         </div>
         <button
           className="btn btn-primary admin-editable"
@@ -274,7 +294,7 @@ export function MembersSection({ members, onUpdate, onToast, actions }: MembersS
         onConfirm={confirmRemove}
         title={modal?.type === "confirm-remove" ? `Remove ${modal.member.name}?` : ""}
         description={modal?.type === "confirm-remove"
-          ? "They'll immediately lose access to Savanna Bank. Runs they created stay in the audit trail."
+          ? `They'll immediately lose access to ${tenantName}. Runs they created stay in the audit trail.`
           : ""}
         icon={
           <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--danger-subtle)", color: "var(--danger)", display: "grid", placeItems: "center" }}>
