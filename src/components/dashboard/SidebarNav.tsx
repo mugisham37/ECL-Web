@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
-  { href: "/runs", icon: Activity, label: "Runs", badge: 3 },
+  { href: "/runs", icon: Activity, label: "Runs" },
   { href: "/results", icon: BarChart3, label: "Results" },
 ];
 
