@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, User, Moon, LogOut } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -14,6 +15,7 @@ interface UserMenuProps {
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
 
@@ -78,7 +80,7 @@ export function UserMenu({ user }: UserMenuProps) {
               </p>
             </div>
 
-            <button className="mp-item" onClick={() => setOpen(false)}>
+            <button className="mp-item" onClick={() => { setOpen(false); router.push("/settings"); }}>
               <User size={15} className="mp-ic" />
               Account
             </button>
