@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Database, ChevronDown, Check, Settings } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Tenant } from "@/lib/dashboard-types";
@@ -9,9 +10,11 @@ interface TenantMenuProps {
   activeTenant: Tenant;
   allTenants: Tenant[];
   onSwitch: (t: Tenant) => void;
+  switching?: boolean;
 }
 
-export function TenantMenu({ activeTenant, allTenants, onSwitch }: TenantMenuProps) {
+export function TenantMenu({ activeTenant, allTenants, onSwitch, switching = false }: TenantMenuProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -101,6 +104,7 @@ export function TenantMenu({ activeTenant, allTenants, onSwitch }: TenantMenuPro
                 key={t.id}
                 className="mp-item"
                 style={{ justifyContent: "space-between" }}
+                disabled={switching}
                 onClick={() => { onSwitch(t); setOpen(false); }}
               >
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -119,7 +123,10 @@ export function TenantMenu({ activeTenant, allTenants, onSwitch }: TenantMenuPro
             ))}
 
             <div className="mp-sep" />
-            <button className="mp-item">
+            <button
+              className="mp-item"
+              onClick={() => { setOpen(false); router.push("/admin"); }}
+            >
               <Settings size={15} className="mp-ic" />
               Tenant settings
             </button>
