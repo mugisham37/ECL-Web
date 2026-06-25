@@ -6,7 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { MobileDrawer } from "./MobileDrawer";
 import { useDashboard } from "./DashboardContext";
-import type { AppShellUser, Tenant, Notification } from "@/lib/dashboard-types";
+import type { AppShellUser, Tenant } from "@/lib/dashboard-types";
 
 // ── Inner shell (needs context) ────────────────────────────────────────────
 
@@ -14,7 +14,6 @@ interface ShellInnerProps {
   user: AppShellUser;
   tenant: Tenant;
   allTenants: Tenant[];
-  notifications: Notification[];
   children: React.ReactNode;
 }
 
@@ -22,7 +21,6 @@ function ShellInner({
   user,
   tenant,
   allTenants,
-  notifications,
   children,
 }: ShellInnerProps) {
   const { state, dispatch } = useDashboard();
@@ -59,10 +57,8 @@ function ShellInner({
           user={user}
           tenant={tenant}
           allTenants={allTenants}
-          notifications={notifications}
           onOpenMobileDrawer={() => dispatch({ type: "OPEN_MOBILE_DRAWER" })}
           onToggleCollapse={() => dispatch({ type: "TOGGLE_COLLAPSE" })}
-          onSwitchTenant={(t) => dispatch({ type: "SET_TENANT", tenant: t })}
         />
       </div>
 
@@ -116,7 +112,6 @@ interface AppShellProps {
   user: AppShellUser;
   tenant: Tenant;
   allTenants: Tenant[];
-  notifications: Notification[];
   children: React.ReactNode;
 }
 
@@ -124,7 +119,6 @@ export function AppShell({
   user,
   tenant,
   allTenants,
-  notifications,
   children,
 }: AppShellProps) {
   return (
@@ -133,7 +127,6 @@ export function AppShell({
         user={user}
         tenant={tenant}
         allTenants={allTenants}
-        notifications={notifications}
       >
         {children}
       </ShellInner>
