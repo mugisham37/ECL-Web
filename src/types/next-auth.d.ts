@@ -11,6 +11,7 @@ declare module "@auth/core/types" {
       tenantId: string;
       tenantName: string;
       role: string;
+      currency: string;
       isEmailVerified: boolean;
       isOnboardingComplete: boolean;
       isPlatformAdmin: boolean;
@@ -22,6 +23,7 @@ declare module "@auth/core/types" {
     tenantId?: string;
     tenantName?: string;
     role?: string;
+    currency?: string;
     isEmailVerified?: boolean;
     isOnboardingComplete?: boolean;
     isPlatformAdmin?: boolean;
@@ -34,6 +36,7 @@ declare module "@auth/core/jwt" {
     tenantId?: string;
     tenantName?: string;
     role?: string;
+    currency?: string;
     isEmailVerified?: boolean;
     isOnboardingComplete?: boolean;
     isPlatformAdmin?: boolean;
