@@ -45,8 +45,7 @@ export function SuccessTerminal() {
           className="rc-sub"
           style={{ maxWidth: "42ch", marginLeft: "auto", marginRight: "auto" }}
         >
-          Your {state.runName} ECL has been computed and saved. Re-running these inputs on v1.0.3
-          will reproduce it exactly.
+          Your {state.runName} ECL has been computed and saved. Re-running these inputs will reproduce it exactly.
         </p>
 
         <div className="result-kpis">
