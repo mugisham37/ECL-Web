@@ -6,10 +6,12 @@ import type { NewRunState } from "@/lib/new-run-types";
 
 interface ConfirmGridProps {
   state: NewRunState;
+  tenantName?: string;
+  currency?: string;
   onToggleCombine: (v: boolean) => void;
 }
 
-export function ConfirmGrid({ state, onToggleCombine }: ConfirmGridProps) {
+export function ConfirmGrid({ state, tenantName = "Workspace", currency = "USD", onToggleCombine }: ConfirmGridProps) {
   const showCombine = state.pdFiles.length > 1;
   const segments =
     state.validationResult?.detectedSegments &&
@@ -26,7 +28,7 @@ export function ConfirmGrid({ state, onToggleCombine }: ConfirmGridProps) {
         </div>
         <div className="confirm-row">
           <span className="cr-k">Tenant · currency</span>
-          <span className="cr-v">Savanna Bank PLC · KES</span>
+          <span className="cr-v">{tenantName} · {currency}</span>
         </div>
         <div className="confirm-row">
           <span className="cr-k">PD inputs</span>
