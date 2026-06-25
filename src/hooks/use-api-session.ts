@@ -7,6 +7,8 @@ export function useApiSession() {
   return {
     token: session?.accessToken,
     tenantId: session?.user?.tenantId,
+    tenantName: session?.user?.tenantName,
+    currency: session?.user?.currency ?? "USD",
     role: session?.user?.role,
     isPlatformAdmin: session?.user?.isPlatformAdmin ?? false,
     isLoading: status === "loading",
