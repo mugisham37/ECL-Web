@@ -39,7 +39,7 @@ const EMPTY_CONTEXT: RunContext = {
   period: "—",
   computedAt: "—",
   engineVersion: "—",
-  currency: "KES",
+  currency: "USD",
 };
 
 interface ResultsExplorerProps {
@@ -48,13 +48,15 @@ interface ResultsExplorerProps {
 
 export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
   const router = useRouter();
-  const { tenantId, token } = useApiSession();
+  const { tenantId, token, currency: sessionCurrency } = useApiSession();
   const [level,   setLevel]   = useState<DrillLevel>("portfolio");
   const [curSeg,  setCurSeg]  = useState("");
   const [curLoan, setCurLoan] = useState("");
   const [filter,  setFilter]  = useState<ExplorerFilter>(defaultFilter);
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [runId,   setRunId]   = useState(initialRunId ?? "");
+  const [segmentPage, setSegmentPage] = useState(1);
+  const SEGMENT_PER_PAGE = 50;
   const [exportBusy, setExportBusy] = useState<ExportKind | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -79,16 +81,25 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
 
   // Portfolio query
   const portfolioQuery = useAuthedQuery(
-    ["portfolio", tenantId, runId, filter.stageFilters.indexOf(false) >= 0 ? filter.stageFilters.join() : "all"],
-    (token, tid) => fetchPortfolio(token, tid, { run_id: runId || undefined }),
+    ["portfolio", tenantId, runId, filter.stageFilters.indexOf(false) >= 0 ? filter.stageFilters.join() : "all", filter.minEcl ?? "none"],
+    (token, tid) =>
+      fetchPortfolio(token, tid, {
+        run_id: runId || undefined,
+        min_ecl: filter.minEcl,
+      }),
     { staleTime: 60_000 },
   );
 
   // Segment query — only enabled when drilling into a segment
   const segmentQuery = useAuthedQuery(
-    ["segment", tenantId, runId, curSeg],
+    ["segment", tenantId, runId, curSeg, filter.minEcl ?? "none", segmentPage],
     (token, tid) =>
-      fetchSegmentResults(token, tid, curSeg, { run_id: runId || undefined, per_page: 100 }),
+      fetchSegmentResults(token, tid, curSeg, {
+        run_id: runId || undefined,
+        per_page: SEGMENT_PER_PAGE,
+        page: segmentPage,
+        min_ecl: filter.minEcl,
+      }),
     { enabled: level === "segment" && !!curSeg, staleTime: 60_000 },
   );
 
@@ -127,6 +138,7 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
       setCurSeg("");
       setCurLoan("");
       setFilter(defaultFilter);
+      setSegmentPage(1);
       router.replace(`/results?run_id=${encodeURIComponent(run.fullId)}`, { scroll: false });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -145,6 +157,7 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
 
   function drillSegment(name: string) {
     setCurSeg(name);
+    setSegmentPage(1);
     drill("segment");
   }
 
@@ -160,7 +173,14 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
 
   function handleFilterChange(patch: Partial<ExplorerFilter>) {
     setFilter((prev) => ({ ...prev, ...patch }));
+    if ("minEcl" in patch || "stageFilters" in patch) {
+      setSegmentPage(1);
+    }
   }
+
+  const segmentMeta = segmentQuery.data?.meta;
+  const segmentTotal = segmentMeta?.total ?? segmentQuery.data?.total ?? 0;
+  const segmentTotalPages = segmentMeta?.pages ?? Math.max(1, Math.ceil(segmentTotal / SEGMENT_PER_PAGE));
 
   // Derived data
   const portfolioResult = portfolioQuery.data ? mapPortfolio(portfolioQuery.data) : null;
@@ -173,7 +193,7 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
     computedAt: partialContext.computedAt ?? runDetail?.createdAt ?? "—",
     engineVersion:
       partialContext.engineVersion ?? runDetail?.engineInfo?.version ?? "—",
-    currency: partialContext.currency ?? runDetail?.currency ?? "KES",
+    currency: partialContext.currency ?? runDetail?.currency ?? sessionCurrency ?? "USD",
   };
 
   const displayContext =
@@ -398,6 +418,11 @@ export function ResultsExplorer({ initialRunId }: ResultsExplorerProps) {
                 loans={segmentLoans}
                 pdMatrix={segmentPdMatrix}
                 currency={currency}
+                totalCount={segmentTotal}
+                page={segmentPage}
+                totalPages={segmentTotalPages}
+                onPrevPage={() => setSegmentPage((p) => Math.max(1, p - 1))}
+                onNextPage={() => setSegmentPage((p) => Math.min(segmentTotalPages, p + 1))}
                 onDrillLoan={drillLoan}
                 onClearFilters={clearFilters}
               />
