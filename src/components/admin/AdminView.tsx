@@ -15,6 +15,7 @@ import { useApiSession } from "@/hooks/use-api-session";
 import { formatRole } from "@/lib/api/mappers";
 import {
   fetchMembers,
+  fetchTenantInvites,
   fetchSegments,
   fetchCollateral,
   fetchTenantProfile,
@@ -22,6 +23,8 @@ import {
   closeTenant,
   sendInvite,
   updateMember,
+  resendInvite,
+  revokeInvite,
   removeMember,
   updateSegment,
   createSegment,
@@ -77,18 +80,20 @@ export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
     let cancelled = false;
     (async () => {
       try {
-        const [m, s, c, p] = await Promise.all([
+        const [m, invites, s, c, p] = await Promise.all([
           fetchMembers(token, tenantId),
+          fetchTenantInvites(token, tenantId),
           fetchSegments(token, tenantId),
           fetchCollateral(token, tenantId),
           fetchTenantProfile(token, tenantId),
         ]);
         if (cancelled) return;
-        setMembers(m);
+        const mergedMembers = [...m, ...invites.filter((inv) => !m.some((mem) => mem.email === inv.email))];
+        setMembers(mergedMembers);
         setSegments(s);
         setCollateral(c);
         setProfile(p);
-        snapshots.current = { members: m, segments: s, collateral: c, profile: p };
+        snapshots.current = { members: mergedMembers, segments: s, collateral: c, profile: p };
       } catch {
         if (!cancelled) toast("Failed to load admin data.", "danger");
       } finally {
@@ -107,9 +112,13 @@ export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
 
   async function reloadMembers() {
     if (!token || !tenantId) return;
-    const m = await fetchMembers(token, tenantId);
-    setMembers(m);
-    snapshots.current.members = m;
+    const [m, invites] = await Promise.all([
+      fetchMembers(token, tenantId),
+      fetchTenantInvites(token, tenantId),
+    ]);
+    const merged = [...m, ...invites.filter((inv) => !m.some((mem) => mem.email === inv.email))];
+    setMembers(merged);
+    snapshots.current.members = merged;
   }
 
   async function handleSave() {
@@ -212,6 +221,14 @@ export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
       await removeMember(token, tenantId, memberId);
       await reloadMembers();
     },
+    onResendInvite: async (inviteId: string) => {
+      await resendInvite(token, inviteId);
+      await reloadMembers();
+    },
+    onRevokeInvite: async (inviteId: string) => {
+      await revokeInvite(token, inviteId);
+      await reloadMembers();
+    },
   } : undefined;
 
   function handleDiscard() {
@@ -260,7 +277,7 @@ export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
         <div>
           <h1>Admin</h1>
           <div className="ph-sub">
-            <span>Savanna Bank PLC</span>
+            <span>{profile.name || "Workspace"}</span>
             <span style={{ color: "var(--text-subtle)" }}>·</span>
             <span>Manage your workspace</span>
           </div>
@@ -290,6 +307,7 @@ export function AdminView({ userRole: userRoleProp }: AdminViewProps) {
               <motion.div key="members" variants={FADE} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.15 }}>
                 <MembersSection
                   members={members}
+                  tenantName={profile.name}
                   onUpdate={setMembers}
                   onToast={toast}
                   actions={memberActions}
