@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { fetchRuns } from "@/lib/api/runs";
@@ -8,13 +9,17 @@ import { RunsListView } from "./RunsListView";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
 import { BackendUnavailableNotice } from "@/components/shared/BackendUnavailableNotice";
 
+const RUNS_PER_PAGE = 50;
+
 export function RunsListLoader() {
   const { data: session, status: sessionStatus } = useSession();
   const tenantName = session?.user?.tenantName ?? "Workspace";
+  const currency = session?.user?.currency ?? "USD";
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error, refetch } = useAuthedQuery(
-    ["runs-list", session?.user?.tenantId],
-    (token, tenantId) => fetchRuns(token, tenantId, { per_page: 50 }),
+    ["runs-list", session?.user?.tenantId, page],
+    (token, tenantId) => fetchRuns(token, tenantId, { per_page: RUNS_PER_PAGE, page }),
     { staleTime: 30_000 },
   );
 
@@ -28,6 +33,8 @@ export function RunsListLoader() {
   }
 
   const runs = isError || !data ? [] : (data.items ?? []).map(mapRunListItem);
+  const total = data?.meta?.total ?? runs.length;
+  const totalPages = Math.max(1, Math.ceil(total / RUNS_PER_PAGE));
 
   return (
     <>
@@ -40,7 +47,16 @@ export function RunsListLoader() {
           />
         </div>
       )}
-      <RunsListView runs={runs} tenantName={tenantName} />
+      <RunsListView
+        runs={runs}
+        tenantName={tenantName}
+        currency={currency}
+        page={page}
+        totalPages={totalPages}
+        totalCount={total}
+        onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+        onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
     </>
   );
 }
