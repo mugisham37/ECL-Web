@@ -60,8 +60,18 @@ import type {
 } from "@/lib/api/results";
 
 import { formatRole } from "@/lib/format-role";
+import type { Notification } from "@/lib/dashboard-types";
 
 export { formatRole };
+
+export interface NotificationRaw {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 export function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return "Never";
@@ -72,6 +82,23 @@ export function formatRelativeTime(iso: string | null | undefined): string {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
   if (seconds < 172800) return "Yesterday";
   return `${Math.floor(seconds / 86400)} days ago`;
+}
+
+export function mapNotification(raw: NotificationRaw): Notification {
+  const kindMap: Record<string, Notification["kind"]> = {
+    run_completed: "ok",
+    run_failed: "warn",
+    member_joined: "info",
+    weekly_summary: "info",
+  };
+  return {
+    id: raw.id,
+    kind: kindMap[raw.kind] ?? "info",
+    title: raw.title,
+    description: raw.body,
+    timeAgo: formatRelativeTime(raw.created_at),
+    read: raw.is_read,
+  };
 }
 
 export function mapUserProfile(data: {
