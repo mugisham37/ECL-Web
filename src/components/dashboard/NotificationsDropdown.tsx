@@ -1,17 +1,30 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Bell, Check, AlertTriangle, User } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Notification } from "@/lib/dashboard-types";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
+import { useApiSession } from "@/hooks/use-api-session";
+import {
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "@/lib/api/settings";
 
-interface NotificationsDropdownProps {
-  notifications: Notification[];
-}
-
-export function NotificationsDropdown({ notifications }: NotificationsDropdownProps) {
+export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const { token } = useApiSession();
+
+  const { data: notifications = [] } = useAuthedQuery(
+    ["notifications"],
+    (t) => fetchNotifications(t),
+    { staleTime: 30_000, refetchInterval: 60_000 },
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
@@ -21,6 +34,22 @@ export function NotificationsDropdown({ notifications }: NotificationsDropdownPr
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  }, [queryClient]);
+
+  async function handleMarkAllRead() {
+    if (!token) return;
+    await markAllNotificationsRead(token);
+    refresh();
+  }
+
+  async function handleMarkRead(id: string) {
+    if (!token) return;
+    await markNotificationRead(token, id);
+    refresh();
+  }
 
   function KindIcon({ kind }: { kind: Notification["kind"] }) {
     if (kind === "ok") return <Check size={13} />;
@@ -53,15 +82,28 @@ export function NotificationsDropdown({ notifications }: NotificationsDropdownPr
               <p style={{ fontSize: "var(--fs-body)", fontWeight: "var(--fw-semibold)", color: "var(--text)" }}>
                 Notifications
               </p>
-              <button
-                style={{ background: "none", border: 0, cursor: "pointer", fontSize: "var(--fs-caption)", color: "var(--accent)" }}
-              >
-                Mark all read
-              </button>
+              {unreadCount > 0 && (
+                <button
+                  style={{ background: "none", border: 0, cursor: "pointer", fontSize: "var(--fs-caption)", color: "var(--accent)" }}
+                  onClick={handleMarkAllRead}
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
 
             {notifications.map((n) => (
-              <div key={n.id} className="notif-item">
+              <div
+                key={n.id}
+                className="notif-item"
+                style={{ cursor: n.read ? "default" : "pointer", opacity: n.read ? 0.7 : 1 }}
+                onClick={() => !n.read && handleMarkRead(n.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !n.read) handleMarkRead(n.id);
+                }}
+              >
                 <span className={`ni-ic ${n.kind}`}>
                   <KindIcon kind={n.kind} />
                 </span>
