@@ -26,6 +26,13 @@ export const authConfig = {
           return Response.redirect(new URL("/dashboard", nextUrl));
         }
       }
+
+      if (nextUrl.pathname.startsWith("/admin")) {
+        const role = ((auth?.user as Record<string, unknown> | undefined)?.role as string | undefined)?.toLowerCase();
+        if (role === "reviewer") {
+          return Response.redirect(new URL("/dashboard", nextUrl));
+        }
+      }
       const isProtected = protectedPrefixes.some((p) =>
         nextUrl.pathname.startsWith(p)
       );
