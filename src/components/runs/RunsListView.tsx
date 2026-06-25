@@ -13,9 +13,24 @@ import type { RunListItem, RunListFilter } from "@/lib/runs-types";
 interface RunsListViewProps {
   runs: RunListItem[];
   tenantName: string;
+  currency?: string;
+  page?: number;
+  totalPages?: number;
+  totalCount?: number;
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
 }
 
-export function RunsListView({ runs, tenantName }: RunsListViewProps) {
+export function RunsListView({
+  runs,
+  tenantName,
+  currency = "USD",
+  page = 1,
+  totalPages = 1,
+  totalCount,
+  onPrevPage,
+  onNextPage,
+}: RunsListViewProps) {
   const { role } = useApiSession();
   const canCreateRun = role !== "reviewer";
   const [filter, setFilter] = useState<RunListFilter>(defaultRunListFilter);
@@ -81,7 +96,12 @@ export function RunsListView({ runs, tenantName }: RunsListViewProps) {
       {/* Table */}
       <RunsListTable
         runs={filtered}
-        totalCount={runs.length}
+        totalCount={totalCount ?? runs.length}
+        currency={currency}
+        page={page}
+        totalPages={totalPages}
+        onPrevPage={onPrevPage}
+        onNextPage={onNextPage}
         onClearFilters={clearFilters}
       />
     </motion.div>
