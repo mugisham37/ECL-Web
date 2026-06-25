@@ -20,6 +20,11 @@ interface SegmentViewProps {
   loans?: LoanRow[];
   pdMatrix?: PDMatrix;
   currency?: string;
+  totalCount?: number;
+  page?: number;
+  totalPages?: number;
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
   onDrillLoan: (id: string) => void;
   onClearFilters: () => void;
 }
@@ -30,7 +35,12 @@ export function SegmentView({
   isLoading,
   loans = [],
   pdMatrix = EMPTY_MATRIX,
-  currency = "KES",
+  currency = "USD",
+  totalCount,
+  page = 1,
+  totalPages = 1,
+  onPrevPage,
+  onNextPage,
   onDrillLoan,
   onClearFilters,
 }: SegmentViewProps) {
@@ -150,7 +160,12 @@ export function SegmentView({
       <SegmentLoansTable
         loans={loans}
         filter={filter}
-        totalCount={segment.loans}
+        totalCount={totalCount ?? segment.loans}
+        currency={currency}
+        page={page}
+        totalPages={totalPages}
+        onPrevPage={onPrevPage}
+        onNextPage={onNextPage}
         onDrillLoan={onDrillLoan}
         onClearFilters={onClearFilters}
       />
