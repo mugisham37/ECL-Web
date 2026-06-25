@@ -65,9 +65,17 @@ export interface SegmentViewRaw {
   pdMatrix?: [[number, number, number], [number, number, number], [number, number, number]];
   pd_matrix?: [[number, number, number], [number, number, number], [number, number, number]];
   loans: LoanRowRaw[];
-  total: number;
-  page: number;
-  per_page: number;
+  meta?: {
+    total: number;
+    page: number;
+    per_page: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+  total?: number;
+  page?: number;
+  per_page?: number;
 }
 
 // ── API functions ─────────────────────────────────────────────────────────
@@ -75,11 +83,13 @@ export interface SegmentViewRaw {
 export interface FetchPortfolioParams {
   run_id?: string;
   stage?: string;
+  min_ecl?: number;
 }
 
 export interface FetchSegmentParams {
   run_id?: string;
   stage?: string;
+  min_ecl?: number;
   page?: number;
   per_page?: number;
 }
@@ -96,6 +106,7 @@ export async function fetchPortfolio(
   const qs = new URLSearchParams();
   if (params?.run_id) qs.set("run_id", params.run_id);
   if (params?.stage) qs.set("stage", params.stage);
+  if (params?.min_ecl != null) qs.set("min_ecl", String(params.min_ecl));
   const query = qs.toString() ? `?${qs.toString()}` : "";
   return apiFetch<PortfolioRaw>(`/tenants/${tenantId}/results${query}`, { token });
 }
@@ -109,6 +120,7 @@ export async function fetchSegmentResults(
   const qs = new URLSearchParams();
   if (params?.run_id) qs.set("run_id", params.run_id);
   if (params?.stage) qs.set("stage", params.stage);
+  if (params?.min_ecl != null) qs.set("min_ecl", String(params.min_ecl));
   if (params?.page) qs.set("page", String(params.page));
   if (params?.per_page) qs.set("per_page", String(params.per_page));
   const query = qs.toString() ? `?${qs.toString()}` : "";
