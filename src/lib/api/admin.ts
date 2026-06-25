@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import { mapCollateral, mapMember, mapSegment, mapTenantProfile } from "./mappers";
+import { mapCollateral, mapMember, mapSegment, mapTenantProfile, formatRole } from "./mappers";
 import type { CollateralType, Member, AdminSegment, TenantProfile } from "@/lib/admin-types";
 
 export async function fetchMembers(token: string, tenantId: string): Promise<Member[]> {
@@ -8,6 +8,26 @@ export async function fetchMembers(token: string, tenantId: string): Promise<Mem
     { token },
   );
   return (Array.isArray(res) ? res : []).map(mapMember);
+}
+
+export async function fetchTenantInvites(token: string, tenantId: string): Promise<Member[]> {
+  const data = await apiFetch<Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    invited_by_name?: string;
+  }>>(`/tenants/${tenantId}/invites?status=pending`, { token });
+  return (Array.isArray(data) ? data : []).map((inv) => ({
+    id: inv.id,
+    name: inv.email,
+    email: inv.email,
+    initials: inv.email.slice(0, 2).toUpperCase(),
+    role: formatRole(inv.role) as Member["role"],
+    status: "invited" as const,
+    lastActive: "Pending",
+    isYou: false,
+  }));
 }
 
 export async function fetchSegments(token: string, tenantId: string): Promise<AdminSegment[]> {
