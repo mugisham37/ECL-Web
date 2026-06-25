@@ -55,9 +55,24 @@ export interface RunContext {
 export interface ExplorerFilter {
   search: string;
   stageFilters: [boolean, boolean, boolean];
+  minEcl?: number;
+  visibleColumns?: string[];
 }
+
+export const LOAN_TABLE_COLUMNS = [
+  { id: "id", label: "Loan ID" },
+  { id: "customer", label: "Customer" },
+  { id: "stage", label: "Stage" },
+  { id: "pd", label: "PD (12m)" },
+  { id: "lgd", label: "LGD" },
+  { id: "ead", label: "EAD" },
+  { id: "ecl", label: "ECL" },
+] as const;
+
+export const DEFAULT_VISIBLE_COLUMNS = LOAN_TABLE_COLUMNS.map((c) => c.id);
 
 export const defaultFilter: ExplorerFilter = {
   search: "",
   stageFilters: [true, true, true],
+  visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
 };
