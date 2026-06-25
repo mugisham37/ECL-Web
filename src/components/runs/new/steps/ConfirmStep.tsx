@@ -7,7 +7,7 @@ import { ConfirmGrid } from "../ConfirmGrid";
 
 export function ConfirmStep() {
   const { state, dispatch } = useRunWizard();
-  const { token, tenantId } = useApiSession();
+  const { token, tenantId, tenantName, currency } = useApiSession();
 
   function handleToggleCombine(value: boolean) {
     dispatch({ type: "SET_COMBINE_PD", value });
@@ -24,6 +24,8 @@ export function ConfirmStep() {
       </p>
       <ConfirmGrid
         state={state}
+        tenantName={tenantName ?? undefined}
+        currency={currency}
         onToggleCombine={handleToggleCombine}
       />
     </div>
