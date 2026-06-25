@@ -1,45 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Menu, Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useApiSession } from "@/hooks/use-api-session";
 import { TenantMenu } from "./TenantMenu";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserMenu } from "./UserMenu";
-import type { AppShellUser, Tenant, Notification } from "@/lib/dashboard-types";
+import { switchTenant } from "@/lib/api/auth-api";
+import { formatRole } from "@/lib/format-role";
+import type { AppShellUser, Tenant } from "@/lib/dashboard-types";
 
 interface TopbarProps {
   user: AppShellUser;
   tenant: Tenant;
   allTenants: Tenant[];
-  notifications: Notification[];
   onOpenMobileDrawer: () => void;
   onToggleCollapse: () => void;
-  onSwitchTenant: (t: Tenant) => void;
 }
 
 export function Topbar({
   user,
   tenant,
   allTenants,
-  notifications,
   onOpenMobileDrawer,
   onToggleCollapse,
-  onSwitchTenant,
 }: TopbarProps) {
   const [activeTenant, setActiveTenant] = useState<Tenant>(tenant);
-  const { role } = useApiSession();
+  const [switching, setSwitching] = useState(false);
+  const { role, token } = useApiSession();
+  const { update } = useSession();
+  const router = useRouter();
   const canCreateRun = role !== "reviewer";
+
+  useEffect(() => {
+    setActiveTenant(tenant);
+  }, [tenant]);
 
   function handleMenuPress() {
     if (window.innerWidth < 768) onOpenMobileDrawer();
     else onToggleCollapse();
   }
 
-  function handleSwitch(t: Tenant) {
-    setActiveTenant(t);
-    onSwitchTenant(t);
+  async function handleSwitch(t: Tenant) {
+    if (t.id === activeTenant.id || switching || !token) return;
+    setSwitching(true);
+    try {
+      const data = await switchTenant(token, t.id);
+      await update({
+        accessToken: data.access_token,
+        tenantId: data.tenant_id,
+        tenantName: data.tenant_name,
+        role: data.role,
+        currency: data.currency,
+        isOnboardingComplete: data.is_onboarding_complete,
+      });
+      setActiveTenant({
+        ...t,
+        currency: data.currency,
+        role: formatRole(data.role) as Tenant["role"],
+      });
+      router.refresh();
+    } catch {
+      /* keep current tenant on failure */
+    } finally {
+      setSwitching(false);
+    }
   }
 
   return (
@@ -58,9 +86,7 @@ export function Topbar({
         height: "var(--topbar-h)",
       }}
     >
-      {/* Left */}
       <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", minWidth: 0 }}>
-        {/* Hamburger — all breakpoints: collapses sidebar on md+, opens drawer on mobile */}
         <button
           className="topbar-icon-btn"
           onClick={handleMenuPress}
@@ -69,15 +95,14 @@ export function Topbar({
           <Menu size={18} />
         </button>
 
-        {/* Tenant switcher */}
         <TenantMenu
           activeTenant={activeTenant}
           allTenants={allTenants}
           onSwitch={handleSwitch}
+          switching={switching}
         />
       </div>
 
-      {/* Right */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {canCreateRun && (
           <Link
@@ -106,10 +131,7 @@ export function Topbar({
           </Link>
         )}
 
-        {/* Notifications */}
-        <NotificationsDropdown notifications={notifications} />
-
-        {/* User menu */}
+        <NotificationsDropdown />
         <UserMenu user={user} />
       </div>
     </header>
