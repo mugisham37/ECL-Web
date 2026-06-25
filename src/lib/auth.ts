@@ -16,6 +16,7 @@ function buildUserFromAuthData(data: {
     tenantId: (user.tenant_id ?? user.tenantId) as string,
     tenantName: (user.tenant_name ?? user.tenantName) as string,
     role: user.role as string,
+    currency: (user.currency as string) ?? "USD",
     isEmailVerified: (user.is_email_verified ?? user.isEmailVerified) as boolean,
     isOnboardingComplete: (user.is_onboarding_complete ?? user.isOnboardingComplete) as boolean,
     isPlatformAdmin: (user.is_platform_admin ?? user.isPlatformAdmin ?? false) as boolean,
@@ -50,8 +51,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
 
           const body = await res.json();
 
-          if (body.data?.mfa_required) {
-            throw new Error(`MFA_REQUIRED:${body.data.challenge_token ?? ""}`);
+          if (body.mfa_required || body.data?.mfa_required) {
+            const challenge = body.challenge_token ?? body.data?.challenge_token ?? "";
+            throw new Error(`MFA_REQUIRED:${challenge}`);
           }
 
           return buildUserFromAuthData(body.data);
@@ -109,16 +111,22 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig.callbacks,
     async jwt({ token, user, trigger, session }) {
       if (trigger === "update" && session) {
-        if (typeof (session as Record<string, unknown>).isEmailVerified === "boolean")
-          token.isEmailVerified = (session as Record<string, unknown>).isEmailVerified as boolean;
-        if (typeof (session as Record<string, unknown>).isOnboardingComplete === "boolean")
-          token.isOnboardingComplete = (session as Record<string, unknown>).isOnboardingComplete as boolean;
+        const s = session as Record<string, unknown>;
+        if (typeof s.accessToken === "string") token.accessToken = s.accessToken;
+        if (typeof s.tenantId === "string") token.tenantId = s.tenantId;
+        if (typeof s.tenantName === "string") token.tenantName = s.tenantName;
+        if (typeof s.role === "string") token.role = s.role;
+        if (typeof s.currency === "string") token.currency = s.currency;
+        if (typeof s.isEmailVerified === "boolean") token.isEmailVerified = s.isEmailVerified;
+        if (typeof s.isOnboardingComplete === "boolean")
+          token.isOnboardingComplete = s.isOnboardingComplete;
       }
       if (user) {
         token.accessToken = (user as Record<string, unknown>).accessToken as string;
         token.tenantId = (user as Record<string, unknown>).tenantId as string;
         token.tenantName = (user as Record<string, unknown>).tenantName as string;
         token.role = (user as Record<string, unknown>).role as string;
+        token.currency = ((user as Record<string, unknown>).currency as string) ?? "USD";
         token.isEmailVerified = (user as Record<string, unknown>).isEmailVerified as boolean;
         token.isOnboardingComplete = (user as Record<string, unknown>).isOnboardingComplete as boolean;
         token.isPlatformAdmin = (user as Record<string, unknown>).isPlatformAdmin as boolean;
@@ -131,6 +139,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         session.user.tenantId = token.tenantId as string;
         session.user.tenantName = token.tenantName as string;
         session.user.role = token.role as string;
+        session.user.currency = (token.currency as string) ?? "USD";
         session.user.isEmailVerified = token.isEmailVerified as boolean;
         session.user.isOnboardingComplete = token.isOnboardingComplete as boolean;
         session.user.isPlatformAdmin = token.isPlatformAdmin as boolean;
