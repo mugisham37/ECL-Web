@@ -56,7 +56,7 @@ function ReviewerRedirect() {
 function WizardInner() {
   const { state, dispatch } = useRunWizard();
   const router = useRouter();
-  const { token, tenantId } = useApiSession();
+  const { token, tenantId, tenantName } = useApiSession();
 
   const { step, prevStep, cancelModalOpen, runName } = state;
 
@@ -104,7 +104,7 @@ function WizardInner() {
   return (
     <>
       {/* Header — always visible */}
-      <RunWizardHeader runName={runName} onExit={handleCancel} />
+      <RunWizardHeader runName={runName} tenantName={tenantName ?? undefined} onExit={handleCancel} />
 
       {/* Stepper — always visible (handles done/error terminal state) */}
       <RunWizardStepper currentStep={step} terminalState={terminalState} />
