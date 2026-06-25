@@ -6,7 +6,7 @@ interface RunWizardHeaderProps {
   onExit: () => void;
 }
 
-export function RunWizardHeader({ runName, tenantName = "Savanna Bank PLC", onExit }: RunWizardHeaderProps) {
+export function RunWizardHeader({ runName, tenantName = "Workspace", onExit }: RunWizardHeaderProps) {
   return (
     <div className="run-head">
       <div className="rh-left">
