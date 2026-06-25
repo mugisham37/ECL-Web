@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, MoreVertical, Copy, Check, Search } from "lucide-react";
+import { Eye, Copy, Check, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { RunStatusPill } from "./shared/RunStatusPill";
 import { SkeletonBlock } from "@/components/dashboard/shared/SkeletonBlock";
@@ -26,10 +26,25 @@ interface RunsListTableProps {
   runs: RunListItem[];
   loading?: boolean;
   totalCount: number;
+  currency?: string;
+  page?: number;
+  totalPages?: number;
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
   onClearFilters: () => void;
 }
 
-export function RunsListTable({ runs, loading, totalCount, onClearFilters }: RunsListTableProps) {
+export function RunsListTable({
+  runs,
+  loading,
+  totalCount,
+  currency = "USD",
+  page = 1,
+  totalPages = 1,
+  onPrevPage,
+  onNextPage,
+  onClearFilters,
+}: RunsListTableProps) {
   const router = useRouter();
 
   if (loading) {
@@ -56,7 +71,7 @@ export function RunsListTable({ runs, loading, totalCount, onClearFilters }: Run
               <th className="hidden sm:table-cell">Created</th>
               <th className="hidden md:table-cell">By</th>
               <th>Status</th>
-              <th className="num">Total ECL (KES)</th>
+              <th className="num">Total ECL ({currency})</th>
               <th className="num hidden lg:table-cell">Coverage</th>
               <th />
             </tr>
@@ -117,13 +132,6 @@ export function RunsListTable({ runs, loading, totalCount, onClearFilters }: Run
                       >
                         <Eye size={14} />
                       </button>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ width: 30, height: 30, border: 0, background: "none", color: "var(--text-subtle)", display: "grid", placeItems: "center", borderRadius: "var(--r-sm)", cursor: "pointer" }}
-                        aria-label="More actions"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
                     </div>
                   </td>
                 </motion.tr>
@@ -136,11 +144,22 @@ export function RunsListTable({ runs, loading, totalCount, onClearFilters }: Run
       {/* Table footer */}
       <div className="tbl-foot">
         <span>Showing {runs.length} of {totalCount}</span>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button disabled style={{ height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", background: "none", fontSize: "var(--fs-caption)", color: "var(--text-subtle)", cursor: "not-allowed" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            disabled={page <= 1 || !onPrevPage}
+            onClick={onPrevPage}
+            style={{ height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", background: "none", fontSize: "var(--fs-caption)", color: "var(--text-subtle)", cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
+          >
             Prev
           </button>
-          <button disabled style={{ height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", background: "none", fontSize: "var(--fs-caption)", color: "var(--text-subtle)", cursor: "not-allowed" }}>
+          <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            disabled={page >= totalPages || !onNextPage}
+            onClick={onNextPage}
+            style={{ height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", background: "none", fontSize: "var(--fs-caption)", color: "var(--text-subtle)", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
+          >
             Next
           </button>
         </div>
