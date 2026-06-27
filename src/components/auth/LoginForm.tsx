@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,34 @@ export function LoginForm() {
     undefined
   );
   const router = useRouter();
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
+
+  // Ping the backend as soon as the sign-in page loads.
+  // If Render is cold (free tier sleeping), this wakes it up while the user
+  // types their credentials — so by the time they submit, the server is ready.
+  // On warm instances the ping resolves in <200ms and nothing is shown.
+  useEffect(() => {
+    let cancelled = false;
+
+    // Only show the "warming up" indicator after 2 seconds of waiting,
+    // so fast (warm) instances have zero visible impact.
+    const warmingTimer = setTimeout(() => {
+      if (!cancelled) setIsWarmingUp(true);
+    }, 2000);
+
+    fetch("/ready", { cache: "no-store", signal: AbortSignal.timeout(120_000) })
+      .finally(() => {
+        if (!cancelled) {
+          clearTimeout(warmingTimer);
+          setIsWarmingUp(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(warmingTimer);
+    };
+  }, []);
 
   useEffect(() => {
     if (state?.error === "MFA_REQUIRED" && state?.challengeToken) {
@@ -27,6 +55,7 @@ export function LoginForm() {
   }, [state, router]);
 
   const hasError = !!state?.error && state.error !== "MFA_REQUIRED";
+  const isDisabled = pending || isWarmingUp;
 
   return (
     <AuthCard shake={hasError} key={state?.error}>
@@ -40,6 +69,13 @@ export function LoginForm() {
       <form action={action} className="flex flex-col gap-4 mt-6">
         <AuthFormError message={state?.error} />
 
+        {isWarmingUp && (
+          <p className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
+            <Spinner size="sm" />
+            Server is starting up, please wait…
+          </p>
+        )}
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email" style={{ fontWeight: 500, color: "var(--text)" }}>
             Email
@@ -50,7 +86,7 @@ export function LoginForm() {
             type="email"
             autoComplete="username"
             placeholder="you@savannabank.co.ke"
-            disabled={pending}
+            disabled={isDisabled}
             required={false}
           />
         </div>
@@ -60,7 +96,7 @@ export function LoginForm() {
           name="password"
           label="Password"
           autoComplete="current-password"
-          disabled={pending}
+          disabled={isDisabled}
         />
 
         <div className="flex items-center justify-between gap-3">
@@ -77,13 +113,18 @@ export function LoginForm() {
         <Button
           type="submit"
           size="lg"
-          disabled={pending}
+          disabled={isDisabled}
           className="w-full mt-1"
         >
           {pending ? (
             <>
               <Spinner size="sm" className="mr-2" />
               Signing in…
+            </>
+          ) : isWarmingUp ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Starting server…
             </>
           ) : (
             "Sign in"

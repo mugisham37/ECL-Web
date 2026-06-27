@@ -16,8 +16,10 @@ interface ApiEnvelope<T> {
   message?: string;
 }
 
-export const SERVER_FETCH_TIMEOUT_MS = 10_000;
-export const SERVER_FETCH_WRITE_TIMEOUT_MS = 15_000;
+// Keep both values under Vercel Hobby's 10s function limit so our code throws
+// a clean TIMEOUT error before Vercel hard-kills the function with a 504.
+export const SERVER_FETCH_TIMEOUT_MS = 8_000;
+export const SERVER_FETCH_WRITE_TIMEOUT_MS = 9_000;
 export const UPLOAD_TIMEOUT_MS = 300_000;
 
 function defaultServerTimeoutMs(method?: string): number | undefined {
