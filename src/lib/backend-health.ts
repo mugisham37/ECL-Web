@@ -1,4 +1,4 @@
-export const BACKEND_PROBE_TIMEOUT_MS = 5_000;
+export const BACKEND_PROBE_TIMEOUT_MS = 2_500;
 export const BACKEND_PROBE_PATH = "/ready";
 
 export type BackendProbeResult =

@@ -10,9 +10,6 @@ const nextConfig: NextConfig = {
       dynamic: 30,
       static: 300,
     },
-    // Disable persistent FS cache until Next.js adds retention controls.
-    // Prevents unbounded .next/dev/cache/turbopack bloat and 40s+ compaction hangs.
-    turbopackFileSystemCacheForDev: false,
   },
   async headers() {
     return [

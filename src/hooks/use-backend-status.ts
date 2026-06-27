@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { BackendProbeResult } from "@/lib/backend-health";
 
 const CHECK_INTERVAL_MS = 30_000;
-const PROBE_TIMEOUT_MS = 6_000;
-const RETRY_COUNT = 3;
+const PROBE_TIMEOUT_MS = 2_500;
+const RETRY_COUNT = 2;
 const RETRY_DELAY_MS = 400;
 
 function sleep(ms: number): Promise<void> {

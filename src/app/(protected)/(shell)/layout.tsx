@@ -27,6 +27,7 @@ async function fetchMemberships(token: string): Promise<MembershipRaw[]> {
     const res = await fetch(`${getBackendUrl()}/api/v1/me`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(3_000),
     });
     if (!res.ok) return [];
     const body = await res.json();
