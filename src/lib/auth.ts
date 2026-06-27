@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
 import { getBackendUrl } from "./env";
+import { cookies } from "next/headers";
 
 function buildUserFromAuthData(data: {
   access_token: string;
@@ -48,6 +49,39 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           });
 
           if (!res.ok) return null;
+
+          // Forward the ecl_refresh cookie from Render to the browser.
+          // The login fetch is server-side (Vercel → Render directly), so the
+          // Set-Cookie header is received by Vercel's server and silently dropped.
+          // Without this, the browser never gets a refresh token and is logged out
+          // after the 15-minute access token expires.
+          const rawSetCookie = res.headers.get("set-cookie");
+          if (rawSetCookie) {
+            try {
+              const semiIdx = rawSetCookie.indexOf(";");
+              const pair = semiIdx === -1 ? rawSetCookie : rawSetCookie.substring(0, semiIdx);
+              const eqIdx = pair.indexOf("=");
+              const cookieName = pair.substring(0, eqIdx);
+              const cookieValue = pair.substring(eqIdx + 1);
+
+              const maxAgePart = rawSetCookie
+                .split(";")
+                .map((s) => s.trim())
+                .find((s) => /^max-age=/i.test(s));
+              const maxAge = maxAgePart ? parseInt(maxAgePart.split("=")[1]) : undefined;
+
+              const cookieStore = await cookies();
+              cookieStore.set(cookieName, cookieValue, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "lax",
+                path: "/api/v1/auth",
+                ...(maxAge !== undefined ? { maxAge } : {}),
+              });
+            } catch {
+              // cookies() unavailable in this context — non-fatal
+            }
+          }
 
           const body = await res.json();
 
