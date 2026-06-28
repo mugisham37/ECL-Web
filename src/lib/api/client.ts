@@ -43,7 +43,13 @@ export async function refreshAccessToken(): Promise<string | null> {
     });
     if (!res.ok) return null;
     const body = await res.json();
-    return (body?.data?.access_token as string) ?? null;
+    const newToken = (body?.data?.access_token as string) ?? null;
+    if (newToken && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ecl:token-refreshed", { detail: { accessToken: newToken } }),
+      );
+    }
+    return newToken;
   } catch {
     return null;
   }
