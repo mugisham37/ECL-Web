@@ -4,6 +4,67 @@ import { authConfig } from "./auth.config";
 import { getBackendUrl } from "./env";
 import { cookies } from "next/headers";
 
+/** Decode a JWT payload and return the `exp` claim as milliseconds, or undefined. */
+function decodeTokenExp(token: string): number | undefined {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return undefined;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+    return typeof payload.exp === "number" ? payload.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Called from the NextAuth jwt callback when the stored access token is expired.
+ * Reads the ecl_refresh cookie server-side, calls the backend refresh endpoint
+ * directly (Vercel → Render), stores the rotated refresh cookie, and returns
+ * the new access token string — or null if the refresh failed.
+ */
+async function serverRefreshToken(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const refreshValue = cookieStore.get("ecl_refresh")?.value;
+    if (!refreshValue) return null;
+
+    const res = await fetch(`${getBackendUrl()}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { Cookie: `ecl_refresh=${refreshValue}` },
+    });
+    if (!res.ok) return null;
+
+    const body = (await res.json()) as { data?: { access_token?: string } };
+    const newAccessToken = body?.data?.access_token ?? null;
+    if (!newAccessToken) return null;
+
+    // Persist the rotated ecl_refresh cookie so subsequent server-side requests
+    // still have a valid refresh token. The cookie is writable here because the
+    // NextAuth jwt callback runs inside a Route Handler context (/api/auth/*).
+    const setCookieHeader = res.headers.get("set-cookie");
+    if (setCookieHeader) {
+      const valueMatch = setCookieHeader.match(/ecl_refresh=([^;]+)/);
+      const maxAgeMatch = setCookieHeader.match(/max-age=(\d+)/i);
+      if (valueMatch) {
+        cookieStore.set("ecl_refresh", valueMatch[1], {
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+          path: "/",
+          ...(maxAgeMatch ? { maxAge: parseInt(maxAgeMatch[1]) } : {}),
+        });
+      }
+    }
+
+    return newAccessToken;
+  } catch {
+    return null;
+  }
+}
+
 function buildUserFromAuthData(data: {
   access_token: string;
   user: Record<string, unknown>;
@@ -75,7 +136,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 httpOnly: true,
                 secure: true,
                 sameSite: "lax",
-                path: "/api/v1/auth",
+                path: "/",
                 ...(maxAge !== undefined ? { maxAge } : {}),
               });
             } catch {
@@ -146,7 +207,10 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (trigger === "update" && session) {
         const s = session as Record<string, unknown>;
-        if (typeof s.accessToken === "string") token.accessToken = s.accessToken;
+        if (typeof s.accessToken === "string") {
+          token.accessToken = s.accessToken;
+          token.accessTokenExpiresAt = decodeTokenExp(s.accessToken);
+        }
         if (typeof s.tenantId === "string") token.tenantId = s.tenantId;
         if (typeof s.tenantName === "string") token.tenantName = s.tenantName;
         if (typeof s.role === "string") token.role = s.role;
@@ -156,15 +220,32 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           token.isOnboardingComplete = s.isOnboardingComplete;
       }
       if (user) {
-        token.accessToken = (user as Record<string, unknown>).accessToken as string;
-        token.tenantId = (user as Record<string, unknown>).tenantId as string;
-        token.tenantName = (user as Record<string, unknown>).tenantName as string;
-        token.role = (user as Record<string, unknown>).role as string;
-        token.currency = ((user as Record<string, unknown>).currency as string) ?? "USD";
-        token.isEmailVerified = (user as Record<string, unknown>).isEmailVerified as boolean;
-        token.isOnboardingComplete = (user as Record<string, unknown>).isOnboardingComplete as boolean;
-        token.isPlatformAdmin = (user as Record<string, unknown>).isPlatformAdmin as boolean;
+        const u = user as Record<string, unknown>;
+        token.accessToken = u.accessToken as string;
+        token.accessTokenExpiresAt = decodeTokenExp(u.accessToken as string);
+        token.tenantId = u.tenantId as string;
+        token.tenantName = u.tenantName as string;
+        token.role = u.role as string;
+        token.currency = (u.currency as string) ?? "USD";
+        token.isEmailVerified = u.isEmailVerified as boolean;
+        token.isOnboardingComplete = u.isOnboardingComplete as boolean;
+        token.isPlatformAdmin = u.isPlatformAdmin as boolean;
       }
+
+      // Server-side proactive refresh: if the access token is expired (or expiring
+      // within 30 s), refresh it directly from the server using the ecl_refresh cookie.
+      // This prevents RSC page renders from receiving a stale token and showing the
+      // "Access token has expired" error in the UI before client-side hydration.
+      // Skip on sign-in / explicit update — those tokens are always freshly issued.
+      const expiresAt = token.accessTokenExpiresAt as number | undefined;
+      if (expiresAt && !user && trigger !== "update" && Date.now() > expiresAt - 30_000) {
+        const newToken = await serverRefreshToken();
+        if (newToken) {
+          token.accessToken = newToken;
+          token.accessTokenExpiresAt = decodeTokenExp(newToken);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
