@@ -33,6 +33,7 @@ declare module "@auth/core/types" {
 declare module "@auth/core/jwt" {
   interface JWT {
     accessToken?: string;
+    accessTokenExpiresAt?: number;
     tenantId?: string;
     tenantName?: string;
     role?: string;
