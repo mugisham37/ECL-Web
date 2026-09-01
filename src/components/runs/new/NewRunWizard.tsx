@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { RunWizardProvider, useRunWizard, canContinueFrom, getFooterHint, isUploadReady } from "./RunWizardContext";
+import { RunWizardProvider, useRunWizard, canContinueFrom, getFooterHint } from "./RunWizardContext";
 import { RunWizardHeader } from "./RunWizardHeader";
 import { RunWizardStepper } from "./RunWizardStepper";
 import { RunWizardFooter } from "./RunWizardFooter";
