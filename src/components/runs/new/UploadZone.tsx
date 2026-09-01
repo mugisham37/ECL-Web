@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Upload, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { UploadFilePill } from "./shared/UploadFilePill";
@@ -24,9 +24,10 @@ interface UploadZoneProps {
   onRemove: (id: string) => void;
   onDownloadTemplate?: () => void;
   uploadProgress?: Record<string, number>;
+  footer?: ReactNode;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, uploadProgress }: UploadZoneProps) {
+export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, uploadProgress, footer }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [rejectMessage, setRejectMessage] = useState<string | null>(null);
   const inputId = useId();
@@ -155,6 +156,7 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, u
             ))}
           </AnimatePresence>
         </div>
+        {footer}
       </div>
     </div>
   );
