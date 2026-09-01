@@ -8,6 +8,7 @@ import { useFileUpload } from "@/hooks/use-file-upload";
 import { useApiSession } from "@/hooks/use-api-session";
 import { createRun, deleteUpload, downloadTemplate } from "@/lib/api/runs";
 import type { UploadedFile, FileInputType } from "@/lib/new-run-types";
+import { PdValidateActionRow } from "../pd/PdValidateActionRow";
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -262,7 +263,7 @@ export function UploadStep() {
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
           <div>
             <h2>Upload your monthly files</h2>
-            <p className="rc-sub">Three workbooks define a run. Drop each below, or download a blank template.</p>
+            <p className="rc-sub">Three workbooks define a run. Probability of Default validates on its own as soon as it&apos;s uploaded — you don&apos;t need to wait for Loss Given Default or Exposure at Default.</p>
           </div>
           {/* Run name input */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 200 }}>
@@ -295,6 +296,7 @@ export function UploadStep() {
         onRemove={handleRemovePd}
         onDownloadTemplate={() => handleDownloadTemplate("PD")}
         uploadProgress={state.uploadProgress}
+        footer={<PdValidateActionRow />}
       />
 
       {/* LGD zone */}
