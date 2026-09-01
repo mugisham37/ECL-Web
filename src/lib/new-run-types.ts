@@ -65,6 +65,56 @@ export interface ValidationResult {
   hasTemplateFormatIssues?: boolean;
 }
 
+// ── PD-first preview (validate-time, before LGD/EAD) ───────────────────────
+
+export type PdCriterionOutcome = "pass" | "review" | "block" | "info";
+export type PdCriterionCategory = "structural" | "business" | "info";
+export type PdStage = 1 | 2 | 3 | "offbooks";
+export type PdPreviewStatus = "idle" | "loading" | "ready" | "blocked" | "error";
+
+export interface PdCriterion {
+  id: string;
+  code: string;
+  name: string;
+  category: PdCriterionCategory;
+  outcome: PdCriterionOutcome;
+  rationale: string;
+}
+
+export interface PdLoanPreviewRow {
+  loanId: string;
+  segment: string;
+  reportingMonth: string;
+  reportingMonthKey: string;
+  staging: PdStage;
+  nextStaging: PdStage;
+}
+
+export interface PdPreviewStats {
+  cureRate: number;
+  loansObserved: number;
+  monthsOfHistory: number;
+}
+
+export interface PdSegmentPreview {
+  segment: string;
+  /** 3×3 or 3×4 (Offbooks) row-normalized probabilities. */
+  matrix: number[][];
+  amounts?: string[][];
+  destLabels?: string[];
+  stats: PdPreviewStats;
+}
+
+export interface PdPreviewResult {
+  status: "ok" | "warn" | "blocking";
+  criteria: PdCriterion[];
+  loans: PdLoanPreviewRow[];
+  segments: PdSegmentPreview[];
+  engineVersion: string;
+  isMock: boolean;
+  issues?: ValidationIssue[];
+}
+
 // ── Compute ────────────────────────────────────────────────────────────────
 
 export type ComputeStageStatus = "pending" | "active" | "done" | "error";
@@ -109,6 +159,9 @@ export interface NewRunState {
   combinePdFiles: boolean;
   validationResult: ValidationResult | null;
   isValidating: boolean;
+  pdPreview: PdPreviewResult | null;
+  pdPreviewStatus: PdPreviewStatus;
+  pdPreviewError: string | null;
   computeProgress: number;
   computeStages: ComputeStage[];
   result: RunResult | null;
@@ -143,7 +196,11 @@ export type NewRunAction =
   | { type: "SET_UPLOADED_FILE_ID"; fileId: string; serverId: string }
   | { type: "UPDATE_FILE_STATUS"; id: string; status: FileStatus; hash?: string; sheets?: number; errorMessage?: string; backendUploadId?: string }
   | { type: "SET_ACCEPTED_WARNING_IDS"; ids: string[] }
-  | { type: "CLEAR_VALIDATION_RESULT" };
+  | { type: "CLEAR_VALIDATION_RESULT" }
+  | { type: "START_PD_VALIDATING" }
+  | { type: "SET_PD_PREVIEW"; result: PdPreviewResult }
+  | { type: "SET_PD_PREVIEW_ERROR"; error: string }
+  | { type: "CLEAR_PD_PREVIEW" };
 
 // ── Mock seed files ───────────────────────────────────────────────────────
 
