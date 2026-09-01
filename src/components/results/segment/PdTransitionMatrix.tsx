@@ -4,10 +4,18 @@ import type { PDMatrix } from "@/lib/results-types";
 const STAGES = ["Stage 1", "Stage 2", "Stage 3"] as const;
 
 interface PdTransitionMatrixProps {
-  matrix: PDMatrix;
+  matrix: PDMatrix | number[][];
+  destLabels?: string[];
+  amounts?: string[][];
 }
 
-export function PdTransitionMatrix({ matrix }: PdTransitionMatrixProps) {
+export function PdTransitionMatrix({
+  matrix,
+  destLabels,
+  amounts,
+}: PdTransitionMatrixProps) {
+  const cols = destLabels ?? [...STAGES];
+
   return (
     <div>
       <div style={{ overflowX: "auto" }}>
@@ -15,11 +23,11 @@ export function PdTransitionMatrix({ matrix }: PdTransitionMatrixProps) {
           <thead>
             <tr>
               <td className="mat-corner" />
-              <td className="mat-axis" colSpan={3}>TO STAGE →</td>
+              <td className="mat-axis" colSpan={cols.length}>TO STAGE →</td>
             </tr>
             <tr>
               <td className="mat-corner" />
-              {STAGES.map((s) => (
+              {cols.map((s) => (
                 <th key={s} className="mat-colhead">{s}</th>
               ))}
             </tr>
@@ -33,11 +41,12 @@ export function PdTransitionMatrix({ matrix }: PdTransitionMatrixProps) {
                 {row.map((val, ci) => {
                   const tint  = Math.round(val * 72);
                   const light = val < 0.45;
+                  const dest = cols[ci] ?? STAGES[ci];
                   return (
                     <motion.td
                       key={ci}
                       className="mat-cell"
-                      title={`P(${STAGES[ri]} → ${STAGES[ci]}) = ${val.toFixed(3)}`}
+                      title={`P(${STAGES[ri]} → ${dest}) = ${val.toFixed(3)}`}
                       style={{
                         background: `color-mix(in srgb, var(--accent) ${tint}%, transparent)`,
                         color: light ? "var(--text-muted)" : "#fff",
@@ -50,8 +59,12 @@ export function PdTransitionMatrix({ matrix }: PdTransitionMatrixProps) {
                         ease: [0.22, 1, 0.36, 1],
                       }}
                     >
-                      {val.toFixed(3)}
-                      <span className="pct-small">{Math.round(val * 100)}%</span>
+                      {amounts
+                        ? `${(val * 100).toFixed(1)}%`
+                        : val.toFixed(3)}
+                      <span className="pct-small">
+                        {amounts ? amounts[ri]?.[ci] : `${Math.round(val * 100)}%`}
+                      </span>
                     </motion.td>
                   );
                 })}
@@ -61,7 +74,6 @@ export function PdTransitionMatrix({ matrix }: PdTransitionMatrixProps) {
         </table>
       </div>
 
-      {/* Legend */}
       <div className="mat-legend">
         <span>0%</span>
         <span
