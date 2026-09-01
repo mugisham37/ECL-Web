@@ -1,0 +1,89 @@
+/* =========================================================================
+   ECL — FLOW 5 v2 · PD-FIRST VALIDATION  (additive extension)
+   Loaded after newrun.css. Does not modify tokens/base/components/appshell/
+   newrun — only adds what PD-first validation needs, reusing existing
+   classes everywhere else. The .panel / .pd-matrix rules are copied
+   verbatim from results.css (Flow 7) per the design brief §3.8, since
+   Flow 5 does not otherwise load results.css.
+   ========================================================================= */
+
+/* ---- PD transition matrix cell intensities (theme-aware) ---- */
+:root {
+  --mx-s1s1: rgba(109,74,255,0.55); --mx-s1s2: rgba(109,74,255,0.16); --mx-s1s3: rgba(197,64,62,0.10); --mx-s1off: rgba(148,148,164,0.14);
+  --mx-s2s1: rgba(109,74,255,0.14); --mx-s2s2: rgba(109,74,255,0.38); --mx-s2s3: rgba(197,64,62,0.30); --mx-s2off: rgba(148,148,164,0.14);
+  --mx-s3s1: rgba(31,143,87,0.20);  --mx-s3s2: rgba(31,143,87,0.12);  --mx-s3s3: rgba(197,64,62,0.62);  --mx-s3off: rgba(148,148,164,0.10);
+  --mx-strong-text: #fff;
+}
+[data-theme="dark"] {
+  --mx-s1s1: rgba(139,108,255,0.62); --mx-s1s2: rgba(139,108,255,0.20); --mx-s1s3: rgba(240,106,106,0.14); --mx-s1off: rgba(104,108,142,0.18);
+  --mx-s2s1: rgba(139,108,255,0.18); --mx-s2s2: rgba(139,108,255,0.44); --mx-s2s3: rgba(240,106,106,0.34); --mx-s2off: rgba(104,108,142,0.18);
+  --mx-s3s1: rgba(67,194,129,0.24);  --mx-s3s2: rgba(67,194,129,0.15);  --mx-s3s3: rgba(240,106,106,0.68);  --mx-s3off: rgba(104,108,142,0.14);
+  --mx-strong-text: #0B0C1A;
+}
+
+/* ---- panel + PD transition matrix (verbatim from results.css) ---- */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.panel-head h3 { font-size: var(--fs-h3); }
+.panel-body { padding: 16px; }
+.matrix-wrap { overflow-x: auto; }
+.pd-matrix { border-collapse: separate; border-spacing: 0; font-family: var(--font-mono); font-size: var(--fs-caption); margin: 0 auto; }
+.pd-matrix th, .pd-matrix td { padding: 0; text-align: center; }
+.pd-matrix .corner { background: transparent; }
+.pd-matrix .axis { color: var(--text-subtle); font-size: var(--fs-micro); letter-spacing: var(--tracking-caps); padding: 6px; font-family: var(--font-mono); }
+.pd-matrix .rowhead, .pd-matrix .colhead { color: var(--text-muted); font-weight: var(--fw-semibold); padding: 8px 12px; white-space: nowrap; background: var(--surface-sunken); }
+.pd-matrix .cell { width: 84px; height: 52px; border: 1px solid var(--surface); color: var(--text); position: relative; transition: transform var(--t-micro); cursor: default; font-weight: var(--fw-medium); }
+.pd-matrix .cell:hover { transform: scale(1.08); z-index: 2; border-color: var(--accent); box-shadow: var(--shadow-pop); }
+.pd-matrix .cell .pctsmall { display: block; font-size: 9px; opacity: 0.6; font-weight: var(--fw-regular); }
+.matrix-legend { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 14px; font-size: var(--fs-caption); color: var(--text-muted); }
+.matrix-legend .scale { display: inline-flex; height: 10px; width: 120px; border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+
+/* ---- PD criteria checklist ---- */
+.crit-group { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.crit-group + .crit-group { margin-top: var(--sp-3); }
+.crit-group-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; background: var(--surface-sunken); }
+.crit-group-head:hover { background: var(--surface); }
+.crit-group-head .cg-ic { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; background: var(--accent-subtle); color: var(--accent); }
+.crit-group-head .cg-title { font-weight: var(--fw-semibold); }
+.crit-group-head .cg-sub { font-size: var(--fs-caption); color: var(--text-muted); }
+.crit-group-head .cg-count { margin-left: auto; }
+.crit-group-head .cg-chev { color: var(--text-subtle); transition: transform var(--t-fast); }
+.crit-group.open .cg-chev { transform: rotate(180deg); }
+.crit-body { display: none; }
+.crit-group.open .crit-body { display: block; }
+.crit-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.crit-row .cr-main { flex: 1; min-width: 0; }
+.crit-row .cr-name { font-weight: var(--fw-medium); font-size: var(--fs-body); }
+.crit-row .cr-code { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--text-subtle); margin-right: 6px; }
+.crit-row .cr-rationale { font-size: var(--fs-caption); color: var(--text-muted); margin-top: 2px; }
+
+/* ---- next-month staging cell ---- */
+.next-stage { display: inline-flex; align-items: center; gap: 6px; }
+.next-stage .ns-arrow { color: var(--text-subtle); width: 14px; height: 14px; flex: none; }
+
+/* ---- loan-preview toolbar + preview disclosure ---- */
+.rx-toolbar-mini { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: var(--sp-3); }
+.rx-toolbar-mini .search { width: 220px; }
+.preview-note { display: flex; align-items: center; gap: 8px; font-size: var(--fs-caption); color: var(--text-subtle); margin-top: var(--sp-3); }
+.preview-note .ic { width: 14px; height: 14px; }
+
+/* ---- PD upload-zone: independent "Validate PD" action row ---- */
+.pd-validate-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+/* ---- pending (not-yet-uploaded) val-file rows ---- */
+.val-file.pending { opacity: 0.6; }
+
+/* ---- responsive: stack loan table into cards under 768px, per design brief §6 ---- */
+@media (max-width: 767px) {
+  .tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .rx-toolbar-mini .search { width: 100%; }
+  #pdLoanTable thead { display: none; }
+  #pdLoanTable, #pdLoanTable tbody, #pdLoanTable tr, #pdLoanTable td { display: block; width: 100%; }
+  #pdLoanTable tr { border-bottom: 1px solid var(--border); padding: 10px 12px; }
+  #pdLoanTable tr:last-child { border-bottom: 0; }
+  #pdLoanTable td { border-bottom: 0; height: auto; padding: 3px 0; display: flex; justify-content: space-between; gap: 10px; }
+  #pdLoanTable td::before { content: attr(data-label); font-size: var(--fs-caption); color: var(--text-muted); }
+}
+@media (max-width: 1023px) {
+  .crit-group-head { flex-wrap: wrap; }
+}
