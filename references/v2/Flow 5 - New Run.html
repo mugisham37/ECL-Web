@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-density="comfortable">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECL Platform — New Run (v2 · PD-first validation)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="../styles/components.css">
+<link rel="stylesheet" href="../styles/appshell.css">
+<link rel="stylesheet" href="../styles/newrun.css">
+<link rel="stylesheet" href="../styles/newrun-v2.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+<symbol id="i-runs" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+<symbol id="i-results" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14v4"/><path d="M12 9v9"/><path d="M17 12v6"/></symbol>
+<symbol id="i-admin" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3L21 8"/><path d="M21 3v5h-5"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+<symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-checklist" viewBox="0 0 24 24"><path d="M9 3h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2V4a1 1 0 0 1 1-1Z"/><path d="m9 13 2 2 4-4"/></symbol>
+</defs></svg>
+
+<!-- PROTOTYPE STATE SWITCHER -->
+<div class="proto">
+  <div class="proto-bar">
+    <span class="proto-label mono">Flow 5 v2 · jump</span>
+    <div class="seg" role="group" aria-label="Step">
+      <button data-jump="upload" aria-pressed="true">Upload</button>
+      <button data-jump="validate">Validate</button>
+      <button data-jump="confirm">Confirm</button>
+      <button data-jump="compute">Compute</button>
+      <button data-jump="success">Done</button>
+      <button data-jump="failure">Fail</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button data-theme-btn="light" aria-pressed="true"><svg class="ic ic-14"><use href="#i-sun"/></svg></button>
+      <button data-theme-btn="dark" aria-pressed="false"><svg class="ic ic-14"><use href="#i-moon"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app" data-side="expanded">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-brand"><span class="mark"><svg class="ic" width="16" height="16"><use href="#i-db"/></svg></span><span class="brand-txt">ECL Platform</span></div>
+    <nav class="side-nav" aria-label="Primary">
+      <a class="side-link"><svg class="ic"><use href="#i-home"/></svg><span class="link-txt">Home</span></a>
+      <a class="side-link active"><svg class="ic"><use href="#i-runs"/></svg><span class="link-txt">Runs</span></a>
+      <a class="side-link"><svg class="ic"><use href="#i-results"/></svg><span class="link-txt">Results</span></a>
+      <div class="side-group-label">Manage</div>
+      <a class="side-link"><svg class="ic"><use href="#i-admin"/></svg><span class="link-txt">Admin</span></a>
+      <a class="side-link"><svg class="ic"><use href="#i-settings"/></svg><span class="link-txt">Settings</span></a>
+    </nav>
+    <div class="side-foot"><button class="side-collapse" id="collapseBtn"><svg class="ic"><use href="#i-chev-l"/></svg><span class="link-txt">Collapse</span></button></div>
+  </aside>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <button class="tenant"><span class="t-mark"><svg class="ic ic-14"><use href="#i-db"/></svg></span><span class="t-name">Savanna Bank PLC</span><svg class="ic ic-14 t-chev"><use href="#i-chev-d"/></svg></button>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" aria-label="Notifications"><svg class="ic"><use href="#i-bell"/></svg><span class="dot-badge"></span></button>
+      <button class="avatar-btn" aria-label="Account"><span class="avatar avatar-sm">TM</span></button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="main-inner">
+      <!-- run header -->
+      <div class="run-head">
+        <div class="rh-left">
+          <button class="back-btn" id="exitBtn" aria-label="Back to dashboard"><svg class="ic"><use href="#i-arrow-l"/></svg></button>
+          <div><h1>New Run</h1><div class="rh-sub" id="runHeadSub">Savanna Bank PLC · Oct 2024</div></div>
+        </div>
+        <span class="statpill"><span class="k">Engine</span><span class="v">v1.0.3</span></span>
+      </div>
+
+      <!-- stepper -->
+      <nav class="run-steps" id="runSteps" aria-label="Run progress"></nav>
+
+      <div class="run-stage">
+
+        <!-- STEP 1 · UPLOAD -->
+        <section class="run-screen active" id="rs-upload">
+          <div class="run-card" style="margin-bottom:var(--sp-4)">
+            <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:14px">
+              <div><h2>Upload your monthly files</h2><p class="rc-sub">Three workbooks define a run. Probability of Default validates on its own as soon as it's uploaded — you don't need to wait for Loss Given Default or Exposure at Default.</p></div>
+              <div class="field" style="min-width:200px"><label for="runName">Run name / period</label><input class="input" id="runName" value="Oct 2024"></div>
+            </div>
+          </div>
+
+          <!-- PD — now with an independent Validate PD action -->
+          <div class="upload-zone" data-zone="PD">
+            <div class="uz-head"><span class="uz-badge">PD</span><div class="uz-meta"><div class="t">Probability of Default <span class="tag t-micro">multi-file</span></div><div class="d">Monthly loan listings — multiple files are combined</div></div><button class="btn btn-ghost btn-sm uz-tmpl"><svg class="ic ic-14"><use href="#i-download"/></svg>Template</button></div>
+            <div class="uz-body">
+              <div class="dz" data-drop="PD"><svg class="ic dz-ic"><use href="#i-upload"/></svg><div><strong>Drop .xlsx files</strong> or <span class="link-accent">browse</span></div><span class="t-caption muted">Up to 10 files · 25 MB each</span></div>
+              <div class="uz-files" data-files="PD">
+                <div class="fpill"><span class="fp-ic ok"><svg class="ic"><use href="#i-check"/></svg></span><div class="fp-meta"><div class="n">PD_loans_2024-10.xlsx</div><div class="d">1.2 MB · 412 rows</div></div></div>
+                <div class="fpill"><span class="fp-ic ok"><svg class="ic"><use href="#i-check"/></svg></span><div class="fp-meta"><div class="n">PD_loans_2024-11.xlsx</div><div class="d">1.2 MB · 408 rows</div></div></div>
+                <div class="fpill"><span class="fp-ic ok"><svg class="ic"><use href="#i-check"/></svg></span><div class="fp-meta"><div class="n">PD_loans_2024-12.xlsx</div><div class="d">1.1 MB · 404 rows</div></div></div>
+              </div>
+              <div class="pd-validate-row">
+                <span class="pill pill-success"><span class="dot"></span>Validated · 5 passed, 2 to review</span>
+                <button class="btn btn-secondary btn-sm" data-jump-to="validate"><svg class="ic ic-14"><use href="#i-checklist"/></svg>View validation</button>
+              </div>
+            </div>
+          </div>
+          <!-- LGD -->
+          <div class="upload-zone" data-zone="LGD">
+            <div class="uz-head"><span class="uz-badge">LGD</span><div class="uz-meta"><div class="t">Loss Given Default</div><div class="d">Collateral register with customer linkage</div></div><button class="btn btn-ghost btn-sm uz-tmpl"><svg class="ic ic-14"><use href="#i-download"/></svg>Template</button></div>
+            <div class="uz-body"><div class="dz" data-drop="LGD"><svg class="ic dz-ic"><use href="#i-upload"/></svg><div><strong>Drop one .xlsx file</strong> or <span class="link-accent">browse</span></div><span class="t-caption muted">Single workbook · 25 MB</span></div><div class="uz-files" data-files="LGD"></div></div>
+          </div>
+          <!-- EAD -->
+          <div class="upload-zone" data-zone="EAD">
+            <div class="uz-head"><span class="uz-badge">EAD</span><div class="uz-meta"><div class="t">Exposure at Default</div><div class="d">Balances &amp; schedules for the rundown</div></div><button class="btn btn-ghost btn-sm uz-tmpl"><svg class="ic ic-14"><use href="#i-download"/></svg>Template</button></div>
+            <div class="uz-body"><div class="dz" data-drop="EAD"><svg class="ic dz-ic"><use href="#i-upload"/></svg><div><strong>Drop one .xlsx file</strong> or <span class="link-accent">browse</span></div><span class="t-caption muted">Single workbook · 25 MB</span></div><div class="uz-files" data-files="EAD"></div></div>
+          </div>
+        </section>
+
+        <!-- STEP 2 · VALIDATE (PD validates independently; LGD/EAD wait) -->
+        <section class="run-screen" id="rs-validate">
+          <div class="run-card" style="margin-bottom:var(--sp-4)">
+            <h2>Validate your files</h2>
+            <p class="rc-sub">Probability of Default validates on its own, the moment it's uploaded — Loss Given Default and Exposure at Default validate together once both are uploaded.</p>
+          </div>
+
+          <!-- PD — empty state (no PD file uploaded yet) -->
+          <div id="pdValEmpty" style="display:none;margin-bottom:var(--sp-4)">
+            <div class="run-card">
+              <div class="state">
+                <div class="state-ic"><svg class="ic ic-20"><use href="#i-upload"/></svg></div>
+                <h3>No PD file uploaded yet</h3>
+                <p>Upload a Probability of Default workbook to validate it — you don't need Loss Given Default or Exposure at Default yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- PD — loading state (shown while validating) -->
+          <div id="pdValScanning" style="display:none;margin-bottom:var(--sp-4)">
+            <div class="run-card">
+              <div class="row" style="gap:14px"><span class="spinner" style="width:22px;height:22px"></span><div><div style="font-weight:var(--fw-semibold)">Validating your PD file…</div><div class="rc-sub" id="pdScanMsg">Checking structure, staging logic and computing the transition-matrix preview.</div></div></div>
+              <div class="progress indeterminate" style="margin-top:16px"><div class="bar"></div></div>
+            </div>
+          </div>
+
+          <!-- PD — blocking-error state (shown when structural checks fail) -->
+          <div id="pdValBlocked" style="display:none;margin-bottom:var(--sp-4)">
+            <div class="val-summary err">
+              <span class="vs-ic"><svg class="ic ic-20"><use href="#i-alert"/></svg></span>
+              <div><div class="vs-t">2 blocking errors found</div><div class="vs-d">Fix these in PD_loans_2024-10.xlsx and re-upload before this file can validate.</div></div>
+            </div>
+            <div class="val-file" style="margin-top:var(--sp-3)">
+              <div class="vf-head">
+                <span class="vf-ic" style="background:var(--danger-subtle);color:var(--danger)"><svg class="ic"><use href="#i-x"/></svg></span>
+                <span class="vf-name">PD_loans_2024-10.xlsx</span>
+              </div>
+              <div class="vf-body" style="padding-left:54px">
+                <div class="issue block"><svg class="ic iss-ic"><use href="#i-alert"/></svg><div><div>Missing required column: <strong>SEGMENT</strong></div><div class="iss-loc">row 1 · header</div><div class="iss-fix">Add a SEGMENT column, or download the PD template for the exact expected layout.</div></div></div>
+                <div class="issue block"><svg class="ic iss-ic"><use href="#i-alert"/></svg><div><div>Staging value not recognized: <strong>"stg1"</strong></div><div class="iss-loc">row 214 · Staging</div><div class="iss-fix">Staging must be exactly "Stage 1", "Stage 2" or "Stage 3".</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PD — results state (default: shown once validation succeeds) -->
+          <div id="pdValResults">
+          <div class="val-file open" id="pdValFile" style="margin-bottom:var(--sp-4)">
+            <div class="vf-head">
+              <span class="vf-ic" style="background:var(--success-subtle);color:var(--success)"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="vf-name">PD · PD_loans_2024-10.xlsx <span class="muted" style="font-weight:400">+ 2 more</span></span>
+              <span class="vf-status"><span class="pill pill-success"><span class="dot"></span>Validated</span><svg class="ic vf-chev"><use href="#i-chev-d"/></svg></span>
+            </div>
+            <div class="vf-body">
+
+              <!-- criteria checklist -->
+              <div class="crit-group" style="margin-top:4px">
+                <div class="crit-group-head">
+                  <span class="cg-ic"><svg class="ic"><use href="#i-checklist"/></svg></span>
+                  <div><div class="cg-title">Format &amp; completeness checks</div><div class="cg-sub mono">8 checks</div></div>
+                  <span class="cg-count pill pill-success"><span class="dot"></span>All passed</span>
+                  <svg class="ic cg-chev"><use href="#i-chev-d"/></svg>
+                </div>
+                <div class="crit-body">
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Required columns present</div><div class="cr-rationale">Loan ID, SEGMENT, Reporting Month, Staging and Loan Amount are all present in the file.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Loan ID present</div><div class="cr-rationale">Every row has a non-blank Loan ID.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Segment present</div><div class="cr-rationale">Every row has a non-blank SEGMENT value.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Reporting month valid</div><div class="cr-rationale">Every Reporting Month parses as a real calendar date.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Staging value valid</div><div class="cr-rationale">Every Staging value is exactly "Stage 1", "Stage 2" or "Stage 3".</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Loan amount non-negative</div><div class="cr-rationale">Every Loan Amount is zero or greater.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">Segment recognized</div><div class="cr-rationale">Every SEGMENT value matches one this tenant has configured.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name">No duplicate rows <span class="cr-code" style="margin-left:4px">EC-10</span></div><div class="cr-rationale">No (Loan ID, Reporting Month) pair repeats.</div></div></div>
+                </div>
+              </div>
+
+              <div class="crit-group open" style="margin-top:var(--sp-3)">
+                <div class="crit-group-head">
+                  <span class="cg-ic"><svg class="ic"><use href="#i-checklist"/></svg></span>
+                  <div><div class="cg-title">Business &amp; statistical checks</div><div class="cg-sub mono">EC-11–EC-17</div></div>
+                  <span class="cg-count pill pill-warning"><span class="dot"></span>5 passed · 2 to review</span>
+                  <svg class="ic cg-chev"><use href="#i-chev-d"/></svg>
+                </div>
+                <div class="crit-body">
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-11</span>Chronological month coverage</div><div class="cr-rationale">Oct, Nov and Dec 2024 are all present for Agriculture — no gaps to silently distort the transition matrix.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-12</span>Loan ID format consistency</div><div class="cr-rationale">Loan IDs follow one consistent pattern (AGR-2024-####) across all three months.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-warning" style="margin-top:1px"><span class="dot"></span>Review</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-13</span>Minimum transition history</div><div class="cr-rationale">Only 3 monthly transitions observed for Agriculture — the matrix below will stabilise as more months are uploaded.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-14</span>Stage-mix plausibility</div><div class="cr-rationale">Stage 1/2/3 distribution for Agriculture falls within the expected range for this segment.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-15</span>Marginal PD bounds</div><div class="cr-rationale">Every computed default probability is between 0% and 100%, and never decreases over time.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-success" style="margin-top:1px"><span class="dot"></span>Pass</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-16</span>Cure rate sanity</div><div class="cr-rationale">9.1% of Stage 3 loans recover to a performing stage — within the plausible range.</div></div></div>
+                  <div class="crit-row"><span class="pill pill-warning" style="margin-top:1px"><span class="dot"></span>Review</span><div class="cr-main"><div class="cr-name"><span class="cr-code">EC-17</span>Offbooks rate sanity</div><div class="cr-rationale">4 loans exited Agriculture in Dec 2024 — a little above the segment's trailing average. Worth a quick check.</div></div></div>
+                </div>
+              </div>
+
+              <div class="callout callout-info" style="margin-top:var(--sp-3)"><svg class="ic"><use href="#i-hash"/></svg><span><strong>EC-18</strong> · Reproducibility — generated by Engine v1.0.3. This preview will reproduce identically for this file, and nothing has been saved yet.</span></div>
+
+              <!-- loan-level preview -->
+              <div class="between" style="margin-top:var(--sp-6);margin-bottom:10px">
+                <h3 style="font-size:var(--fs-h3)">Loan-level preview</h3>
+                <span class="t-caption">412 loans · Oct–Dec 2024</span>
+              </div>
+              <div class="tabs" style="margin-bottom:var(--sp-3)" role="tablist" aria-label="Segment">
+                <button class="tab" aria-selected="true">Agriculture</button>
+                <button class="tab" aria-selected="false">SME</button>
+                <button class="tab" aria-selected="false">Retail</button>
+                <button class="tab" aria-selected="false">Corporate</button>
+                <button class="tab" aria-selected="false">Mortgage</button>
+              </div>
+              <div class="rx-toolbar-mini">
+                <div class="input-wrap search"><svg class="ic"><use href="#i-search"/></svg><input class="input" placeholder="Search Loan ID…"></div>
+              </div>
+              <div class="tbl-wrap" data-density="compact">
+                <table class="tbl" id="pdLoanTable">
+                  <thead><tr>
+                    <th class="sortable">Loan ID</th><th>Segment</th><th class="sortable" aria-sort="ascending">Reporting month</th><th>Staging</th><th>Next month staging</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0142</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Oct 2024</td><td data-label="Staging"><span class="stage stage-1">Stage 1</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-1">Stage 1</span></span></td></tr>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0142</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Nov 2024</td><td data-label="Staging"><span class="stage stage-1">Stage 1</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-2">Stage 2</span></span></td></tr>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0142</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Dec 2024</td><td data-label="Staging"><span class="stage stage-2">Stage 2</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-off">Offbooks</span></span></td></tr>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0177</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Oct 2024</td><td data-label="Staging"><span class="stage stage-2">Stage 2</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-2">Stage 2</span></span></td></tr>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0177</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Nov 2024</td><td data-label="Staging"><span class="stage stage-2">Stage 2</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-3">Stage 3</span></span></td></tr>
+                    <tr><td class="mono" data-label="Loan ID">AGR-2024-0203</td><td data-label="Segment">Agriculture</td><td class="mono" data-label="Reporting month">Oct 2024</td><td data-label="Staging"><span class="stage stage-3">Stage 3</span></td><td data-label="Next month staging"><span class="next-stage"><svg class="ic-14 ns-arrow"><use href="#i-arrow-r"/></svg><span class="stage stage-1">Stage 1</span></span></td></tr>
+                  </tbody>
+                </table>
+                <div class="tbl-foot"><span>Showing 6 of 412 · sorted by Reporting month</span><span class="row-tight"><button class="btn btn-ghost btn-sm" disabled>Prev</button><button class="btn btn-ghost btn-sm">Next</button></span></div>
+              </div>
+
+              <!-- transition matrix -->
+              <div class="panel" style="margin-top:var(--sp-4)">
+                <div class="panel-head"><h3>PD transition matrix</h3><span class="t-caption">Oct–Dec 2024 · Agriculture · aggregated</span></div>
+                <div class="panel-body">
+                  <div class="matrix-wrap">
+                    <table class="pd-matrix">
+                      <tr><td class="corner"></td><td class="axis" colspan="4">to</td></tr>
+                      <tr><td class="corner"></td><td class="colhead">Stage 1</td><td class="colhead">Stage 2</td><td class="colhead">Stage 3</td><td class="colhead">Offbooks</td></tr>
+                      <tr><td class="rowhead">Stage 1</td>
+                        <td class="cell" style="background:var(--mx-s1s1);color:var(--mx-strong-text)">86.4%<span class="pctsmall">148.6M</span></td>
+                        <td class="cell" style="background:var(--mx-s1s2)">9.8%<span class="pctsmall">16.9M</span></td>
+                        <td class="cell" style="background:var(--mx-s1s3)">1.1%<span class="pctsmall">1.9M</span></td>
+                        <td class="cell" style="background:var(--mx-s1off)">2.7%<span class="pctsmall">4.6M</span></td>
+                      </tr>
+                      <tr><td class="rowhead">Stage 2</td>
+                        <td class="cell" style="background:var(--mx-s2s1)">11.2%<span class="pctsmall">3.8M</span></td>
+                        <td class="cell" style="background:var(--mx-s2s2)">63.5%<span class="pctsmall">21.6M</span></td>
+                        <td class="cell" style="background:var(--mx-s2s3)">18.9%<span class="pctsmall">6.4M</span></td>
+                        <td class="cell" style="background:var(--mx-s2off)">6.4%<span class="pctsmall">2.2M</span></td>
+                      </tr>
+                      <tr><td class="rowhead">Stage 3</td>
+                        <td class="cell" style="background:var(--mx-s3s1)">6.0%<span class="pctsmall">0.7M</span></td>
+                        <td class="cell" style="background:var(--mx-s3s2)">3.1%<span class="pctsmall">0.4M</span></td>
+                        <td class="cell" style="background:var(--mx-s3s3);color:var(--mx-strong-text)">88.4%<span class="pctsmall">10.6M</span></td>
+                        <td class="cell" style="background:var(--mx-s3off)">2.5%<span class="pctsmall">0.3M</span></td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div class="matrix-legend"><span>0%</span><span class="scale" style="background:linear-gradient(90deg,var(--surface-sunken),var(--accent))"></span><span>100%</span><span class="muted">· cell = P(row→col) next month</span></div>
+                  <div class="hr" style="margin:16px 0"></div>
+                  <div class="row wrap" style="gap:var(--sp-3)">
+                    <div class="kpi" style="flex:1;min-width:140px"><span class="label">Cure rate</span><span class="value">9.1%</span></div>
+                    <div class="kpi" style="flex:1;min-width:140px"><span class="label">Loans observed</span><span class="value">412</span></div>
+                    <div class="kpi" style="flex:1;min-width:140px"><span class="label">Months of history</span><span class="value">3</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="preview-note"><svg class="ic"><use href="#i-info"/></svg><span>Preview only — nothing is saved until you confirm and compute the run.</span></div>
+            </div>
+          </div>
+          </div>
+
+          <!-- LGD — pending, unchanged bare treatment -->
+          <div class="val-file pending">
+            <div class="vf-head">
+              <span class="vf-ic" style="background:var(--surface-sunken);color:var(--text-subtle)"><svg class="ic"><use href="#i-warn"/></svg></span>
+              <span class="vf-name">LGD</span>
+              <span class="vf-status"><span class="pill pill-neutral"><span class="dot"></span>Not uploaded yet</span></span>
+            </div>
+          </div>
+          <!-- EAD — pending -->
+          <div class="val-file pending" style="margin-top:var(--sp-3)">
+            <div class="vf-head">
+              <span class="vf-ic" style="background:var(--surface-sunken);color:var(--text-subtle)"><svg class="ic"><use href="#i-warn"/></svg></span>
+              <span class="vf-name">EAD</span>
+              <span class="vf-status"><span class="pill pill-neutral"><span class="dot"></span>Not uploaded yet</span></span>
+            </div>
+          </div>
+
+          <div class="callout callout-info" style="margin-top:var(--sp-4)"><svg class="ic"><use href="#i-info"/></svg><span>Warnings won't block your run, but blocking errors must be fixed and re-uploaded before you can continue.</span></div>
+        </section>
+
+        <!-- STEP 3 · CONFIRM (unchanged from v1) -->
+        <section class="run-screen" id="rs-confirm">
+          <div class="run-card">
+            <h2>Confirm &amp; start</h2>
+            <p class="rc-sub">Review the run below. Once started, the engine is deterministic — these exact inputs and engine version will always produce the same output.</p>
+            <div class="confirm-grid" style="margin-top:20px">
+              <div class="confirm-row"><span class="cr-k">Run name</span><span class="cr-v" id="cfName">Oct 2024</span></div>
+              <div class="confirm-row"><span class="cr-k">Tenant · currency</span><span class="cr-v">Savanna Bank PLC · KES</span></div>
+              <div class="confirm-row"><span class="cr-k">PD inputs</span><span class="cr-v" id="cfPD"><div class="row-tight wrap" style="gap:6px"><span class="hash-pill"><svg class="ic ic-14"><use href="#i-file"/></svg>PD_loans_2024-10.xlsx <span class="subtle">a3f9…2c1b</span></span><span class="hash-pill"><svg class="ic ic-14"><use href="#i-file"/></svg>PD_loans_2024-11.xlsx <span class="subtle">7d10…b8e4</span></span><span class="hash-pill"><svg class="ic ic-14"><use href="#i-file"/></svg>PD_loans_2024-12.xlsx <span class="subtle">f4c2…19ad</span></span></div></span></div>
+              <div class="confirm-row"><span class="cr-k">LGD input</span><span class="cr-v"><span class="hash-pill"><svg class="ic ic-14"><use href="#i-file"/></svg>LGD_collateral_10.xlsx <span class="subtle">c81a…77fe</span></span></span></div>
+              <div class="confirm-row"><span class="cr-k">EAD input</span><span class="cr-v"><span class="hash-pill"><svg class="ic ic-14"><use href="#i-file"/></svg>EAD_balances_10.xlsx <span class="subtle">e918…5b6d</span></span></span></div>
+              <div class="confirm-row"><span class="cr-k">Segments detected</span><span class="cr-v"><div class="row-tight wrap" style="gap:6px"><span class="tag">Agriculture</span><span class="tag">SME</span><span class="tag">Retail</span><span class="tag">Corporate</span><span class="tag">Mortgage</span></div></span></div>
+              <div class="confirm-row"><span class="cr-k">Engine version</span><span class="cr-v"><span class="mono">v1.0.3</span> · 299 monthly powers</span></div>
+            </div>
+            <label class="check" style="margin-top:20px"><input type="checkbox" id="cfCombine" checked><span class="box"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>Combine the 3 PD files into one listing before computing</label>
+            <div class="callout callout-success" style="margin-top:16px"><svg class="ic"><use href="#i-lock"/></svg><span>Input hashes are recorded so any auditor can reproduce this exact run later.</span></div>
+          </div>
+        </section>
+
+        <!-- STEP 4 · COMPUTE (unchanged from v1) -->
+        <section class="run-screen" id="rs-compute">
+          <div class="run-card">
+            <div class="compute-wrap">
+              <div class="compute-ring" id="computeRing"></div>
+              <h2 style="font-size:var(--fs-h2)">Computing your ECL</h2>
+              <p class="rc-sub" id="computeMsg">This usually takes under a minute for a portfolio this size.</p>
+              <div class="compute-tracker" id="computeTracker"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SUCCESS (unchanged from v1) -->
+        <section class="run-screen" id="rs-success">
+          <div class="run-card run-terminal">
+            <div class="rt-ic ok"><svg class="ic ic-24"><use href="#i-check"/></svg></div>
+            <h2>Run complete</h2>
+            <p class="rc-sub" style="max-width:42ch;margin-left:auto;margin-right:auto">Your Oct 2024 ECL has been computed and saved. Re-running these inputs on v1.0.3 will reproduce it exactly.</p>
+            <div class="result-kpis">
+              <div class="rk"><div class="k">Total ECL</div><div class="v"><span class="cur">KES</span>1,284,500</div></div>
+              <div class="rk"><div class="k">Coverage ratio</div><div class="v">2.41%</div></div>
+              <div class="rk"><div class="k">Run ID</div><div class="v" style="font-size:1rem;display:flex;align-items:center;gap:6px">c81a…77fe <svg class="ic ic-14 muted"><use href="#i-copy"/></svg></div></div>
+            </div>
+            <div class="row-tight" style="justify-content:center;gap:10px"><button class="btn btn-primary btn-lg"><svg class="ic"><use href="#i-eye"/></svg>View results</button><button class="btn btn-secondary btn-lg"><svg class="ic"><use href="#i-download"/></svg>Download workbooks</button></div>
+          </div>
+        </section>
+
+        <!-- FAILURE (unchanged from v1) -->
+        <section class="run-screen" id="rs-failure">
+          <div class="run-card run-terminal">
+            <div class="rt-ic err"><svg class="ic ic-24"><use href="#i-warn"/></svg></div>
+            <h2>Run failed at the LGD stage</h2>
+            <p class="rc-sub" style="max-width:46ch;margin-left:auto;margin-right:auto">A collateral type in your file wasn't in Savanna Bank's reference table, so LGD couldn't be computed. No partial results were saved.</p>
+            <div class="callout callout-danger" style="text-align:left;max-width:520px;margin:20px auto"><svg class="ic"><use href="#i-alert"/></svg><div><div style="font-weight:var(--fw-medium)">Unknown collateral type: "Warehouse receipt"</div><div class="t-caption" style="margin-top:2px">LGD_collateral_10.xlsx · row 412 · <span class="mono">ref a3f9-2c1b</span></div></div></div>
+            <div class="row-tight" style="justify-content:center;gap:10px"><button class="btn btn-primary"><svg class="ic"><use href="#i-refresh"/></svg>Edit inputs &amp; retry</button><button class="btn btn-secondary">Add collateral type in Admin</button><button class="btn btn-ghost">Contact support</button></div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- WIZARD FOOTER -->
+      <div class="run-foot" id="runFoot">
+        <button class="btn btn-ghost" id="rfBack"><svg class="ic"><use href="#i-arrow-l"/></svg>Back</button>
+        <div class="right">
+          <button class="btn btn-ghost" id="rfCancel">Cancel</button>
+          <span class="tip"><button class="btn btn-primary" id="rfNext" disabled>Continue<svg class="ic"><use href="#i-arrow-r"/></svg></button><span class="tip-body" id="rfTip" style="display:none">Upload LGD and EAD to continue</span></span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="side-scrim" id="sideScrim"></div>
+
+<!-- CANCEL CONFIRM MODAL -->
+<div class="modal-scrim" id="cancelScrim" style="position:fixed;inset:0;background:var(--scrim);z-index:80;display:none;align-items:center;justify-content:center;padding:20px" role="dialog" aria-modal="true">
+  <div class="card card-pad" style="max-width:400px;box-shadow:var(--shadow-modal)">
+    <h3 class="t-h2">Discard this run?</h3>
+    <p class="muted" style="margin-top:8px">Your uploaded files and progress will be discarded. This can't be undone.</p>
+    <div class="row-tight" style="margin-top:20px;gap:10px"><button class="btn btn-secondary grow" data-cancel-close>Keep editing</button><button class="btn btn-danger grow" id="exitToRuns">Discard run</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { id: "upload",   label: "Upload"   },
+    { id: "validate", label: "Validate" },
+    { id: "confirm",  label: "Confirm"  },
+    { id: "compute",  label: "Compute"  }
+  ];
+  var TERMINAL = { success: true, failure: true };
+
+  var stepsNav = document.getElementById("runSteps");
+  var runFoot  = document.getElementById("runFoot");
+  var rfNext   = document.getElementById("rfNext");
+  var rfBack   = document.getElementById("rfBack");
+  var jumpBtns = document.querySelectorAll("[data-jump]");
+
+  function stepIndex(id) {
+    for (var i = 0; i < STEPS.length; i++) if (STEPS[i].id === id) return i;
+    return -1;
+  }
+
+  function renderSteps(currentId) {
+    if (!stepsNav) return;
+    var curIdx = stepIndex(currentId);
+    var failed = currentId === "failure";
+    var html = "";
+    STEPS.forEach(function (step, i) {
+      var cls = "rs";
+      var inner = '<span class="n">' + (i + 1) + "</span>";
+      if (currentId === "success" || (failed && i < STEPS.length - 1)) {
+        cls += " done";
+        inner = '<span class="n"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>';
+      } else if (failed && i === STEPS.length - 1) {
+        cls += " error";
+      } else if (curIdx > -1 && i < curIdx) {
+        cls += " done";
+        inner = '<span class="n"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>';
+      } else if (i === curIdx) {
+        cls += " active";
+      }
+      html += '<div class="' + cls + '">' + inner + '<span class="lbl-txt">' + step.label + "</span></div>";
+      if (i < STEPS.length - 1) html += '<div class="line"></div>';
+    });
+    stepsNav.innerHTML = html;
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll(".run-screen").forEach(function (s) { s.classList.remove("active"); });
+    var target = document.getElementById("rs-" + id);
+    if (target) target.classList.add("active");
+
+    jumpBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.jump === id ? "true" : "false"); });
+
+    renderSteps(id);
+
+    var isTerminalOrCompute = TERMINAL[id] || id === "compute";
+    if (runFoot) runFoot.style.display = isTerminalOrCompute ? "none" : "";
+    if (rfNext) rfNext.disabled = (id === "validate");
+  }
+
+  jumpBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () { showScreen(btn.dataset.jump); });
+  });
+  document.querySelectorAll("[data-jump-to]").forEach(function (btn) {
+    btn.addEventListener("click", function () { showScreen(btn.dataset.jumpTo); });
+  });
+
+  if (rfNext) {
+    rfNext.addEventListener("click", function () {
+      var current = document.querySelector(".run-screen.active");
+      var id = current ? current.id.replace("rs-", "") : "upload";
+      var idx = stepIndex(id);
+      if (idx > -1 && idx < STEPS.length - 1) showScreen(STEPS[idx + 1].id);
+    });
+  }
+  if (rfBack) {
+    rfBack.addEventListener("click", function () {
+      var current = document.querySelector(".run-screen.active");
+      var id = current ? current.id.replace("rs-", "") : "upload";
+      var idx = stepIndex(id);
+      if (idx > 0) showScreen(STEPS[idx - 1].id);
+    });
+  }
+
+  // theme toggle
+  var themeBtns = document.querySelectorAll("[data-theme-btn]");
+  themeBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var theme = btn.dataset.themeBtn;
+      document.documentElement.setAttribute("data-theme", theme);
+      themeBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.themeBtn === theme ? "true" : "false"); });
+    });
+  });
+
+  // cancel-run modal
+  var cancelScrim = document.getElementById("cancelScrim");
+  var rfCancel = document.getElementById("rfCancel");
+  if (rfCancel && cancelScrim) {
+    rfCancel.addEventListener("click", function () { cancelScrim.style.display = "flex"; });
+    cancelScrim.querySelectorAll("[data-cancel-close]").forEach(function (b) {
+      b.addEventListener("click", function () { cancelScrim.style.display = "none"; });
+    });
+  }
+
+  // criteria-group and validated-file accordions
+  document.querySelectorAll(".crit-group-head").forEach(function (head) {
+    head.addEventListener("click", function () { head.parentElement.classList.toggle("open"); });
+  });
+  document.querySelectorAll(".vf-head").forEach(function (head) {
+    var file = head.parentElement;
+    if (file.querySelector(".vf-body")) {
+      head.addEventListener("click", function () { file.classList.toggle("open"); });
+    }
+  });
+
+  // segment tabs (PD loan-preview panel)
+  document.querySelectorAll(".tabs").forEach(function (tabs) {
+    tabs.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        tabs.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", "false"); });
+        tab.setAttribute("aria-selected", "true");
+      });
+    });
+  });
+
+  // initial render
+  renderSteps("upload");
+})();
+</script>
+</body>
+</html>
