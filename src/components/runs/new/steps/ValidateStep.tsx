@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Info, RefreshCw } from "lucide-react";
+import { Info, RefreshCw, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ValidationSummary } from "../ValidationSummary";
 import { ValidationFileItem } from "../ValidationFileItem";
-import { useRunWizard } from "../RunWizardContext";
+import { PendingFileItem } from "../pd/PendingFileItem";
+import { useRunWizard, hasLgdAndEad, pdFilesReady } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
 import {
   validateRun,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/api/runs";
 import { mapValidationResult } from "@/lib/api/mappers";
 import { formatApiError } from "@/lib/api/format-api-error";
+import { validatePdRun } from "@/lib/api/pd-validation";
 import type { UploadedFile, ValidationFileResult, FileInputType } from "@/lib/new-run-types";
 
 function collectUploadedFiles(state: {
@@ -30,9 +32,7 @@ function collectUploadedFiles(state: {
   ];
 }
 
-function collectWarningIds(
-  fileResults: ValidationFileResult[],
-): string[] {
+function collectWarningIds(fileResults: ValidationFileResult[]): string[] {
   return fileResults.flatMap((fr) =>
     fr.issues.filter((i) => i.level === "warn").map((i) => i.id),
   );
@@ -42,6 +42,21 @@ export function ValidateStep() {
   const { state, dispatch } = useRunWizard();
   const { token, tenantId } = useApiSession();
   const [reuploadingId, setReuploadingId] = useState<string | null>(null);
+
+  const pdReady = pdFilesReady(state);
+  const paired = hasLgdAndEad(state);
+
+  const runPdValidation = useCallback(async () => {
+    if (!state.runId || !token || !tenantId) return;
+    dispatch({ type: "START_PD_VALIDATING" });
+    try {
+      const result = await validatePdRun(token, tenantId, state.runId);
+      dispatch({ type: "SET_PD_PREVIEW", result });
+    } catch (err: unknown) {
+      const formatted = formatApiError(err);
+      dispatch({ type: "SET_PD_PREVIEW_ERROR", error: formatted.hint || formatted.summary });
+    }
+  }, [dispatch, state.runId, tenantId, token]);
 
   const runValidation = useCallback(async () => {
     if (!state.runId || !token || !tenantId) return;
@@ -105,11 +120,36 @@ export function ValidateStep() {
   ]);
 
   useEffect(() => {
+    if (!pdReady || !state.runId || !token || !tenantId) return;
+    if (state.pdPreview) return;
+    if (state.pdPreviewStatus === "error") return;
+    let cancelled = false;
+    (async () => {
+      dispatch({ type: "START_PD_VALIDATING" });
+      try {
+        const result = await validatePdRun(token, tenantId, state.runId!);
+        if (!cancelled) dispatch({ type: "SET_PD_PREVIEW", result });
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const formatted = formatApiError(err);
+        dispatch({ type: "SET_PD_PREVIEW_ERROR", error: formatted.hint || formatted.summary });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // pdPreviewStatus is read for the error guard only — not a fetch trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, pdReady, state.pdPreview, state.runId, tenantId, token]);
+
+  useEffect(() => {
+    if (!paired) return;
     if (state.isValidating || state.validationResult || !state.runId || !token || !tenantId) {
       return;
     }
     void runValidation();
   }, [
+    paired,
     runValidation,
     state.isValidating,
     state.validationResult,
@@ -136,6 +176,9 @@ export function ValidateStep() {
       });
       dispatch({ type: "CLEAR_VALIDATION_RESULT" });
       dispatch({ type: "SET_ACCEPTED_WARNING_IDS", ids: [] });
+      if (file.type === "PD") {
+        dispatch({ type: "CLEAR_PD_PREVIEW" });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Re-upload failed";
       dispatch({ type: "UPDATE_FILE_STATUS", id: file.id, status: "error", errorMessage: msg });
@@ -171,18 +214,127 @@ export function ValidateStep() {
     warningIds.length > 0 &&
     warningIds.every((id) => state.acceptedWarningIds.includes(id));
 
+  const primaryPd = state.pdFiles[0];
+  const lgdResult = state.validationResult?.fileResults.find((r) => r.file.type === "LGD");
+  const eadResult = state.validationResult?.fileResults.find((r) => r.file.type === "EAD");
+  const pdBlockingResult = state.pdPreview?.status === "blocking" && primaryPd
+    ? {
+        file: primaryPd,
+        issues: state.pdPreview.issues ?? [],
+      }
+    : null;
+
   return (
     <div>
+      <div className="run-card" style={{ marginBottom: "var(--sp-4)" }}>
+        <h2>Validate your files</h2>
+        <p className="rc-sub">
+          Probability of Default validates on its own, the moment it&apos;s uploaded — Loss Given Default and Exposure at Default validate together once both are uploaded.
+        </p>
+      </div>
+
+      {!pdReady && (
+        <div className="run-card" style={{ marginBottom: "var(--sp-4)" }}>
+          <div className="rx-empty" style={{ padding: "var(--sp-12) var(--sp-4)" }}>
+            <div className="rx-empty-inner">
+              <div className="rx-empty-ic">
+                <Upload size={20} />
+              </div>
+              <h3>No PD file uploaded yet</h3>
+              <p>Upload a Probability of Default workbook to validate it — you don&apos;t need Loss Given Default or Exposure at Default yet.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdReady && state.pdPreviewStatus === "loading" && (
+        <div className="run-card" style={{ marginBottom: "var(--sp-4)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span
+              style={{ width: 22, height: 22, borderRadius: "50%", border: "2.5px solid var(--accent-border)", borderTopColor: "var(--accent)", animation: "spin 0.7s linear infinite", flexShrink: 0 }}
+              aria-hidden="true"
+            />
+            <div>
+              <div style={{ fontWeight: "var(--fw-semibold)" as React.CSSProperties["fontWeight"], color: "var(--text)", fontSize: "var(--fs-body)" }}>
+                Validating your PD file…
+              </div>
+              <div className="rc-sub">Checking structure, staging logic and computing the transition-matrix preview.</div>
+            </div>
+          </div>
+          <div className="progress indeterminate" style={{ marginTop: 16 }}>
+            <div className="bar" />
+          </div>
+        </div>
+      )}
+
+      {pdReady && state.pdPreviewStatus === "error" && (
+        <div className="val-summary err" style={{ marginBottom: "var(--sp-4)" }}>
+          <span className="vs-ic" aria-hidden="true"><RefreshCw size={20} /></span>
+          <div className="val-summary-body">
+            <div className="vs-t">PD validation could not run</div>
+            <div className="vs-d">{state.pdPreviewError ?? "Retry the PD preview."}</div>
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  dispatch({ type: "CLEAR_PD_PREVIEW" });
+                  void runPdValidation();
+                }}
+              >
+                <RefreshCw size={13} aria-hidden="true" />
+                Retry PD validation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdReady && state.pdPreviewStatus === "blocked" && pdBlockingResult && (
+        <div style={{ marginBottom: "var(--sp-4)" }}>
+          <div className="val-summary err">
+            <span className="vs-ic" aria-hidden="true"><RefreshCw size={20} /></span>
+            <div className="val-summary-body">
+              <div className="vs-t">
+                {pdBlockingResult.issues.length} blocking error{pdBlockingResult.issues.length !== 1 ? "s" : ""} found
+              </div>
+              <div className="vs-d">
+                Fix these in {pdBlockingResult.file.name} and re-upload before this file can validate.
+              </div>
+            </div>
+          </div>
+          <ValidationFileItem
+            result={pdBlockingResult}
+            zoneLabel="PD"
+            onReupload={(newFile) => handleReupload(pdBlockingResult, newFile)}
+            isReuploading={reuploadingId === pdBlockingResult.file.id}
+            onDownloadTemplate={() => handleDownloadTemplate("PD")}
+          />
+        </div>
+      )}
+
+      {pdReady && state.pdPreviewStatus === "ready" && state.pdPreview && primaryPd && (
+        <ValidationFileItem
+          result={{ file: primaryPd, issues: [] }}
+          zoneLabel="PD"
+          extraFileCount={Math.max(0, state.pdFiles.length - 1)}
+          pdPreview={state.pdPreview}
+          onReupload={(newFile) => handleReupload({ file: primaryPd, issues: [] }, newFile)}
+          isReuploading={reuploadingId === primaryPd.id}
+          onDownloadTemplate={() => handleDownloadTemplate("PD")}
+        />
+      )}
+
       <AnimatePresence mode="wait">
-        {state.isValidating ? (
+        {paired && state.isValidating ? (
           <motion.div
-            key="scanning"
+            key="scanning-combined"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <div className="run-card">
+            <div className="run-card" style={{ marginTop: "var(--sp-4)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <span
                   style={{ width: 22, height: 22, borderRadius: "50%", border: "2.5px solid var(--accent-border)", borderTopColor: "var(--accent)", animation: "spin 0.7s linear infinite", flexShrink: 0 }}
@@ -190,9 +342,9 @@ export function ValidateStep() {
                 />
                 <div>
                   <div style={{ fontWeight: "var(--fw-semibold)" as React.CSSProperties["fontWeight"], color: "var(--text)", fontSize: "var(--fs-body)" }}>
-                    Validating your files…
+                    Validating LGD and EAD…
                   </div>
-                  <div className="rc-sub">Checking columns, types and reference values. Large files may take up to a minute.</div>
+                  <div className="rc-sub">Checking columns, types and cross-file references.</div>
                 </div>
               </div>
               <div className="progress indeterminate" style={{ marginTop: 16 }}>
@@ -200,28 +352,41 @@ export function ValidateStep() {
               </div>
             </div>
           </motion.div>
-        ) : state.validationResult ? (
+        ) : paired && state.validationResult ? (
           <motion.div
-            key="results"
+            key="combined-results"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
-            <ValidationSummary
-              result={state.validationResult}
-              onDownloadTemplate={handleDownloadTemplate}
-            />
-
-            {state.validationResult.fileResults.map((result) => (
-              <ValidationFileItem
-                key={result.file.id}
-                result={result}
-                zoneLabel={result.file.type}
-                onReupload={(newFile) => handleReupload(result, newFile)}
-                isReuploading={reuploadingId === result.file.id}
-                onDownloadTemplate={() => handleDownloadTemplate(result.file.type)}
+            {state.validationResult &&
+              (state.validationResult.requestError || state.validationResult.status !== "ok") && (
+              <ValidationSummary
+                result={state.validationResult}
+                onDownloadTemplate={handleDownloadTemplate}
               />
-            ))}
+            )}
+
+            {lgdResult && (
+              <ValidationFileItem
+                key={lgdResult.file.id}
+                result={lgdResult}
+                zoneLabel="LGD"
+                onReupload={(newFile) => handleReupload(lgdResult, newFile)}
+                isReuploading={reuploadingId === lgdResult.file.id}
+                onDownloadTemplate={() => handleDownloadTemplate("LGD")}
+              />
+            )}
+            {eadResult && (
+              <ValidationFileItem
+                key={eadResult.file.id}
+                result={eadResult}
+                zoneLabel="EAD"
+                onReupload={(newFile) => handleReupload(eadResult, newFile)}
+                isReuploading={reuploadingId === eadResult.file.id}
+                onDownloadTemplate={() => handleDownloadTemplate("EAD")}
+              />
+            )}
 
             {showRequestRetry && uploadedFiles.length > 0 && (
               <div className="val-uploaded-list">
@@ -293,8 +458,44 @@ export function ValidateStep() {
               </div>
             )}
           </motion.div>
-        ) : null}
+        ) : (
+          <>
+            {state.lgdFile ? null : <PendingFileItem kind="LGD" />}
+            {state.eadFile ? null : <PendingFileItem kind="EAD" />}
+            {state.lgdFile && !lgdResult && paired === false && (
+              <div className="val-file" style={{ marginTop: "var(--sp-3)" }}>
+                <div className="vf-head" style={{ cursor: "default" }}>
+                  <span className="vf-ic" style={{ background: "var(--surface-sunken)", color: "var(--text-muted)" }}>
+                    <Info size={13} />
+                  </span>
+                  <span className="vf-name">{state.lgdFile.name}</span>
+                  <span className="vf-status">
+                    <span className="pill pill-neutral"><span className="dot" />Uploaded</span>
+                  </span>
+                </div>
+              </div>
+            )}
+            {state.eadFile && !eadResult && paired === false && (
+              <div className="val-file" style={{ marginTop: "var(--sp-3)" }}>
+                <div className="vf-head" style={{ cursor: "default" }}>
+                  <span className="vf-ic" style={{ background: "var(--surface-sunken)", color: "var(--text-muted)" }}>
+                    <Info size={13} />
+                  </span>
+                  <span className="vf-name">{state.eadFile.name}</span>
+                  <span className="vf-status">
+                    <span className="pill pill-neutral"><span className="dot" />Uploaded</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </AnimatePresence>
+
+      <div className="callout callout-info" style={{ marginTop: "var(--sp-4)" }}>
+        <Info size={15} className="ic" aria-hidden="true" />
+        <span>Warnings won&apos;t block your run, but blocking errors must be fixed and re-uploaded before you can continue.</span>
+      </div>
     </div>
   );
 }
