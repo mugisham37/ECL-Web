@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { File, ChevronDown, AlertTriangle, AlertCircle, RefreshCw } from "lucide-react";
-import type { ValidationFileResult } from "@/lib/new-run-types";
+import { File, ChevronDown, AlertTriangle, AlertCircle, RefreshCw, Check } from "lucide-react";
+import type { PdPreviewResult, ValidationFileResult } from "@/lib/new-run-types";
+import { PdValidationPanel } from "./pd/PdValidationPanel";
+import { countPdCriteria } from "@/lib/api/pd-validation";
 
 interface ValidationFileItemProps {
   result: ValidationFileResult;
@@ -10,6 +12,8 @@ interface ValidationFileItemProps {
   onReupload: (newFile: File) => void;
   isReuploading?: boolean;
   onDownloadTemplate?: () => void;
+  pdPreview?: PdPreviewResult | null;
+  extraFileCount?: number;
 }
 
 export function ValidationFileItem({
@@ -18,6 +22,8 @@ export function ValidationFileItem({
   onReupload,
   isReuploading,
   onDownloadTemplate,
+  pdPreview,
+  extraFileCount = 0,
 }: ValidationFileItemProps) {
   const { file, issues } = result;
   const blocking = issues.filter((issue) => issue.level === "block");
@@ -25,9 +31,18 @@ export function ValidationFileItem({
   const hasIssues = issues.length > 0;
   const hasBlocking = blocking.length > 0;
   const hasTemplateFormat = issues.some((issue) => issue.category === "template_format");
-  const [open, setOpen] = useState(hasIssues);
+  const isPdPreview = !!pdPreview && file.type === "PD" && pdPreview.status !== "blocking";
+  const [open, setOpen] = useState(hasIssues || isPdPreview);
+  const expandable = hasIssues || isPdPreview;
 
-  const statusPill = !hasIssues ? (
+  const pdCounts = pdPreview ? countPdCriteria(pdPreview.criteria) : null;
+
+  const statusPill = isPdPreview && pdCounts ? (
+    <span className="pill pill-success" style={{ height: 18 }}>
+      <span className="dot" />
+      Validated
+    </span>
+  ) : !hasIssues ? (
     <span className="pill pill-success" style={{ height: 18 }}>Valid</span>
   ) : hasBlocking ? (
     <span className="pill pill-danger" style={{ height: 18 }}>
@@ -42,31 +57,46 @@ export function ValidationFileItem({
     </span>
   );
 
-  const iconBg = !hasIssues
+  const iconBg = isPdPreview || !hasIssues
     ? "var(--success-subtle)"
     : hasBlocking
       ? "var(--danger-subtle)"
       : "var(--warning-subtle)";
-  const iconColor = !hasIssues
+  const iconColor = isPdPreview || !hasIssues
     ? "var(--success)"
     : hasBlocking
       ? "var(--danger)"
       : "var(--warning)";
 
+  function toggle() {
+    if (expandable) setOpen((v) => !v);
+  }
+
   return (
-    <div className={`val-file${open ? " open" : ""}`}>
+    <div className={`val-file${open ? " open" : ""}${isPdPreview ? " pd-rich" : ""}`}>
       <div
         className="vf-head"
-        onClick={() => hasIssues && setOpen((v) => !v)}
-        role={hasIssues ? "button" : undefined}
-        tabIndex={hasIssues ? 0 : undefined}
-        onKeyDown={(e) => e.key === "Enter" && hasIssues && setOpen((v) => !v)}
+        onClick={toggle}
+        role={expandable ? "button" : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-expanded={expandable ? open : undefined}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && expandable) {
+            e.preventDefault();
+            toggle();
+          }
+        }}
       >
         <span className="vf-ic" style={{ background: iconBg, color: iconColor }}>
-          <File size={13} />
+          {isPdPreview || !hasIssues ? <Check size={13} /> : <File size={13} />}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="vf-name">{file.name}</div>
+          <div className="vf-name">
+            {file.type === "PD" ? `PD · ${file.name}` : file.name}
+            {extraFileCount > 0 && (
+              <span className="muted" style={{ fontWeight: 400 }}> + {extraFileCount} more</span>
+            )}
+          </div>
           <div style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)", marginTop: 2, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span
               style={{
@@ -82,11 +112,17 @@ export function ValidationFileItem({
         </div>
         <div className="vf-status">
           {statusPill}
-          {hasIssues && <ChevronDown size={15} className="vf-chev" />}
+          {expandable && <ChevronDown size={15} className="vf-chev" />}
         </div>
       </div>
 
-      {open && hasIssues && (
+      {open && isPdPreview && pdPreview && (
+        <div className="vf-body">
+          <PdValidationPanel preview={pdPreview} />
+        </div>
+      )}
+
+      {open && hasIssues && !isPdPreview && (
         <div className="vf-body">
           {issues.map((issue) => (
             <div key={issue.id} className={`issue ${issue.level}`}>
