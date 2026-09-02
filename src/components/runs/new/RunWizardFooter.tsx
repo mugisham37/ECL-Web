@@ -9,6 +9,8 @@ interface RunWizardFooterProps {
   onBack: () => void;
   onCancel: () => void;
   onNext: () => void;
+  showBack?: boolean;
+  backLabel?: string;
 }
 
 const NEXT_LABELS: Partial<Record<NewRunStep, string>> = {
@@ -24,10 +26,12 @@ export function RunWizardFooter({
   onBack,
   onCancel,
   onNext,
+  showBack,
+  backLabel = "Back",
 }: RunWizardFooterProps) {
   const isConfirm = currentStep === "confirm";
   const nextLabel = NEXT_LABELS[currentStep] ?? "Continue";
-  const showBack = currentStep !== "upload";
+  const canGoBack = showBack ?? currentStep !== "upload";
 
   const btnBase: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 6,
@@ -47,14 +51,14 @@ export function RunWizardFooter({
         style={{
           ...btnBase,
           background: "none", color: "var(--text-muted)", border: "none",
-          visibility: showBack ? "visible" : "hidden",
+          visibility: canGoBack ? "visible" : "hidden",
           cursor: "pointer", opacity: 1,
         }}
         onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "var(--text)")}
         onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)")}
       >
         <ArrowLeft size={15} />
-        Back
+        {backLabel}
       </button>
 
       {/* Right: cancel + next */}
