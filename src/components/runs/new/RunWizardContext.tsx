@@ -33,6 +33,7 @@ const initialState: NewRunState = {
   uploadProgress: {},
   uploadedFileIds: {},
   acceptedWarningIds: [],
+  uploadFocus: null,
 };
 
 // ── Reducer ────────────────────────────────────────────────────────────────
@@ -65,16 +66,33 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
       };
 
     case "SET_LGD_FILE":
-      return { ...state, lgdFile: action.file, validationResult: null, isValidating: false };
+      return {
+        ...state,
+        lgdFile: action.file,
+        validationResult: null,
+        isValidating: false,
+        uploadFocus: action.file ? null : state.uploadFocus,
+      };
 
     case "SET_EAD_FILE":
-      return { ...state, eadFile: action.file, validationResult: null, isValidating: false };
+      return {
+        ...state,
+        eadFile: action.file,
+        validationResult: null,
+        isValidating: false,
+        uploadFocus: action.file ? null : state.uploadFocus,
+      };
 
     case "SET_COMBINE_PD":
       return { ...state, combinePdFiles: action.value };
 
     case "GO_TO_STEP":
-      return { ...state, prevStep: state.step, step: action.step };
+      return {
+        ...state,
+        prevStep: state.step,
+        step: action.step,
+        uploadFocus: action.step === "upload" ? state.uploadFocus : null,
+      };
 
     case "START_VALIDATING":
       return { ...state, isValidating: true, validationResult: null };
@@ -156,6 +174,17 @@ function reducer(state: NewRunState, action: NewRunAction): NewRunState {
     case "CLEAR_PD_PREVIEW":
       return { ...state, pdPreview: null, pdPreviewStatus: "idle", pdPreviewError: null };
 
+    case "REQUEST_FILE_UPLOAD":
+      return {
+        ...state,
+        prevStep: state.step,
+        step: "upload",
+        uploadFocus: action.kind,
+      };
+
+    case "CLEAR_UPLOAD_FOCUS":
+      return { ...state, uploadFocus: null };
+
     default:
       return state;
   }
@@ -215,8 +244,26 @@ export function isUploadReady(state: NewRunState): boolean {
   return pdFilesReady(state) && hasLgdAndEad(state);
 }
 
+export function nextMissingPairFile(state: NewRunState): "LGD" | "EAD" | null {
+  if (!fileIsReady(state.lgdFile)) return "LGD";
+  if (!fileIsReady(state.eadFile)) return "EAD";
+  return null;
+}
+
+export function canReturnToValidate(state: NewRunState): boolean {
+  if (!pdFilesReady(state)) return false;
+  return (
+    state.prevStep === "validate" ||
+    state.pdPreviewStatus === "ready" ||
+    state.pdPreviewStatus === "blocked" ||
+    state.pdPreviewStatus === "loading"
+  );
+}
+
 export function canContinueFrom(state: NewRunState): boolean {
-  if (state.step === "upload") return isUploadReady(state);
+  // PD validates on its own. The upload footer can advance once a PD file is ready;
+  // confirm still waits for LGD + EAD and their joint validation.
+  if (state.step === "upload") return pdFilesReady(state);
   if (state.step === "validate") {
     if (state.pdPreviewStatus === "loading" || state.pdPreviewStatus === "blocked" || state.pdPreviewStatus === "error") {
       return false;
@@ -241,12 +288,14 @@ export function canContinueFrom(state: NewRunState): boolean {
 
 export function getFooterHint(state: NewRunState): string {
   if (state.step === "upload") {
+    if (!pdFilesReady(state)) return "Upload a PD workbook first";
     return "Add all three file types first";
   }
   if (state.step === "validate") {
-    if (!hasLgdAndEad(state)) {
-      return "Upload LGD and EAD to continue";
-    }
+    const missing = nextMissingPairFile(state);
+    if (missing === "LGD") return "Upload LGD to continue";
+    if (missing === "EAD") return "Upload EAD to continue";
+    if (!hasLgdAndEad(state)) return "Upload LGD and EAD to continue";
     if (state.pdPreviewStatus === "blocked") {
       return "Fix the errors in your files before continuing";
     }
