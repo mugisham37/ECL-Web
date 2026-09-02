@@ -761,6 +761,9 @@
 .run-steps .rs.error .n     { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 0 3px var(--danger-subtle); }
 .run-steps .line            { flex: 1; height: 1.5px; background: var(--border); margin: 0 12px; min-width: 20px; }
 .run-steps .rs.done + .line { background: var(--accent); }
+.run-steps .rs.rs-clickable { cursor: pointer; }
+.run-steps .rs.rs-clickable:hover .n { border-color: var(--accent); }
+.run-steps .rs.rs-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-sm); }
 
 /* ---- RUN STAGE + CARDS ---- */
 .run-stage { max-width: 760px; margin: 0 auto; }
@@ -770,7 +773,8 @@
 .run-card .rc-sub { color: var(--text-muted); margin-top: 6px; font-size: var(--fs-body); }
 
 /* ---- UPLOAD ZONES ---- */
-.upload-zone              { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-top: var(--sp-4); }
+.upload-zone              { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-top: var(--sp-4); transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+.upload-zone-focus        { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 .uz-head                  { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface-sunken); border-bottom: 1px solid var(--border); }
 .uz-head .uz-badge        { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-family: var(--font-mono); font-weight: var(--fw-semibold); font-size: 13px; flex: none; background: var(--accent-subtle); color: var(--accent); }
 .uz-head .uz-meta         { min-width: 0; flex: 1; }
@@ -821,8 +825,11 @@
 .val-uploaded-name     { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .val-file              { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-top: var(--sp-3); }
 .val-file.pending      { opacity: 0.6; }
+.val-file.pending.pending-action { opacity: 1; }
+.val-file.pending.pending-next { border-color: var(--accent); }
 .val-file.pending .vf-head { cursor: default; }
 .val-file.pending .vf-head:hover { background: transparent; }
+.val-file.pending.pending-action .vf-head:hover { background: var(--surface-sunken); }
 .val-file.pd-rich .vf-body { padding-left: 14px; padding-right: 14px; }
 .vf-head               { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: background var(--t-micro); }
 .vf-head:hover         { background: var(--surface-sunken); }
