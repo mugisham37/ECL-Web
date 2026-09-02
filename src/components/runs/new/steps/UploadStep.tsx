@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Upload } from "lucide-react";
 import { UploadZone } from "../UploadZone";
-import { useRunWizard } from "../RunWizardContext";
+import { canReturnToValidate, nextMissingPairFile, useRunWizard } from "../RunWizardContext";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useApiSession } from "@/hooks/use-api-session";
 import { createRun, deleteUpload, downloadTemplate } from "@/lib/api/runs";
@@ -36,10 +36,18 @@ export function UploadStep() {
   const { token, tenantId } = useApiSession();
   const initRunPromiseRef = useRef<Promise<string | null> | null>(null);
   const runIdRef = useRef<string | null>(state.runId);
+  const nextMissing = nextMissingPairFile(state);
+  const returningToValidate = canReturnToValidate(state);
 
   useEffect(() => {
     runIdRef.current = state.runId;
   }, [state.runId]);
+
+  useEffect(() => {
+    if (!state.uploadFocus) return;
+    const node = document.getElementById(`upload-zone-${state.uploadFocus}`);
+    node?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [state.uploadFocus]);
 
   // Fallback: create draft run on the client if SSR init did not set one
   useEffect(() => {
@@ -258,12 +266,36 @@ export function UploadStep() {
         </div>
       )}
 
+      {state.uploadFocus && (
+        <div className="callout callout-info" style={{ marginBottom: "var(--sp-4)" }}>
+          <Upload size={15} className="ic" aria-hidden="true" />
+          <span>
+            {state.uploadFocus === "LGD"
+              ? "Your PD file and its validation stay on this run. Upload Loss Given Default here, then continue to validation."
+              : state.uploadFocus === "EAD"
+              ? "PD and LGD stay on this run. Upload Exposure at Default here, then continue to validation — LGD and EAD will be checked together."
+              : "Drop the file for this zone. Files already on this run are kept."}
+          </span>
+        </div>
+      )}
+
+      {!state.uploadFocus && returningToValidate && nextMissing && (
+        <div className="callout callout-info" style={{ marginBottom: "var(--sp-4)" }}>
+          <Upload size={15} className="ic" aria-hidden="true" />
+          <span>
+            {nextMissing === "LGD"
+              ? "PD is validated and kept. Upload Loss Given Default next, then return to validation."
+              : "PD and LGD are kept. Upload Exposure at Default next, then return to validation."}
+          </span>
+        </div>
+      )}
+
       {/* Header card */}
       <div className="run-card" style={{ marginBottom: "var(--sp-4)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
           <div>
             <h2>Upload your monthly files</h2>
-            <p className="rc-sub">Three workbooks define a run. Probability of Default validates on its own as soon as it&apos;s uploaded — you don&apos;t need to wait for Loss Given Default or Exposure at Default.</p>
+            <p className="rc-sub">Upload in order: Probability of Default, then Loss Given Default, then Exposure at Default. PD validates on its own — LGD and EAD are checked together once both are on the run. Files already uploaded stay on this run when you move between steps.</p>
           </div>
           {/* Run name input */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 200 }}>
@@ -297,6 +329,7 @@ export function UploadStep() {
         onDownloadTemplate={() => handleDownloadTemplate("PD")}
         uploadProgress={state.uploadProgress}
         footer={<PdValidateActionRow />}
+        highlighted={state.uploadFocus === "PD"}
       />
 
       {/* LGD zone */}
@@ -307,6 +340,25 @@ export function UploadStep() {
         onRemove={handleRemoveLgd}
         onDownloadTemplate={() => handleDownloadTemplate("LGD")}
         uploadProgress={state.uploadProgress}
+        highlighted={state.uploadFocus === "LGD"}
+        footer={
+          returningToValidate && (state.uploadFocus === "LGD" || nextMissing === "LGD") ? (
+            <div className="pd-validate-row">
+              <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+                {state.lgdFile
+                  ? "LGD is on this run. PD validation is unchanged."
+                  : "Upload LGD — PD stays validated on this run."}
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => dispatch({ type: "GO_TO_STEP", step: "validate" })}
+              >
+                Back to validation
+              </button>
+            </div>
+          ) : undefined
+        }
       />
 
       {/* EAD zone */}
@@ -317,6 +369,25 @@ export function UploadStep() {
         onRemove={handleRemoveEad}
         onDownloadTemplate={() => handleDownloadTemplate("EAD")}
         uploadProgress={state.uploadProgress}
+        highlighted={state.uploadFocus === "EAD"}
+        footer={
+          returningToValidate && (state.uploadFocus === "EAD" || nextMissing === "EAD") ? (
+            <div className="pd-validate-row">
+              <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)" }}>
+                {state.eadFile
+                  ? "EAD is on this run. Return to validate LGD and EAD together."
+                  : "Upload EAD next — PD and LGD stay on this run."}
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => dispatch({ type: "GO_TO_STEP", step: "validate" })}
+              >
+                Back to validation
+              </button>
+            </div>
+          ) : undefined
+        }
       />
     </div>
   );
