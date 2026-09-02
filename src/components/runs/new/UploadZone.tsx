@@ -25,9 +25,19 @@ interface UploadZoneProps {
   onDownloadTemplate?: () => void;
   uploadProgress?: Record<string, number>;
   footer?: ReactNode;
+  highlighted?: boolean;
 }
 
-export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, uploadProgress, footer }: UploadZoneProps) {
+export function UploadZone({
+  type,
+  files,
+  onAdd,
+  onRemove,
+  onDownloadTemplate,
+  uploadProgress,
+  footer,
+  highlighted = false,
+}: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [rejectMessage, setRejectMessage] = useState<string | null>(null);
   const inputId = useId();
@@ -61,7 +71,10 @@ export function UploadZone({ type, files, onAdd, onRemove, onDownloadTemplate, u
   }
 
   return (
-    <div className="upload-zone">
+    <div
+      id={`upload-zone-${type}`}
+      className={`upload-zone${highlighted ? " upload-zone-focus" : ""}`}
+    >
       <input
         id={inputId}
         type="file"
