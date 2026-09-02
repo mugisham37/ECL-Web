@@ -62,11 +62,15 @@ export function ComputeStep() {
     }, COMPUTE_TIMEOUT_MS);
 
     let failedPolls = 0;
+    let pollInFlight = false;
+    let kickRetries = 0;
 
     async function pollRunStatus() {
       if (!state.runId || !token || !tenantId) return;
+      if (pollInFlight) return;
+      pollInFlight = true;
       try {
-        const raw = await fetchRun(token, tenantId, state.runId);
+        const raw = await fetchRun(token, tenantId, state.runId, { view: "progress" });
         failedPolls = 0;
 
         const stages = mapEngineProgress(raw.engineProgress ?? null);
@@ -77,7 +81,18 @@ export function ComputeStep() {
         const pct = Math.min(99, Math.round(((doneCount + activeCount * 0.5) / stages.length) * 100));
         dispatch({ type: "SET_COMPUTE_PROGRESS", pct });
 
-        if (raw.status === "success") {
+        const mappedStatus = raw.status === "complete" ? "success" : raw.status;
+        const stillQueued =
+          raw.status === "queued" &&
+          stages.every((s) => s.status === "pending");
+        if (stillQueued && kickRetries < 2) {
+          kickRetries += 1;
+          void executeRun(token, tenantId, state.runId).catch(() => {
+            /* next poll retries or the timeout surfaces a failure */
+          });
+        }
+
+        if (mappedStatus === "success") {
           clearTimers();
           dispatch({ type: "SET_COMPUTE_PROGRESS", pct: 100 });
           const item = mapRunListItem(raw);
@@ -92,7 +107,7 @@ export function ComputeStep() {
             },
           });
           setTimeout(() => dispatch({ type: "GO_TO_STEP", step: "success" }), 500);
-        } else if (raw.status === "failed") {
+        } else if (mappedStatus === "failed") {
           clearTimers();
           dispatch({
             type: "SET_FAILURE",
@@ -109,6 +124,8 @@ export function ComputeStep() {
         if (failedPolls >= MAX_POLL_FAILURES) {
           goToFailure("polling", "Lost connection while monitoring compute progress. Check your network.");
         }
+      } finally {
+        pollInFlight = false;
       }
     }
 
@@ -135,7 +152,7 @@ export function ComputeStep() {
         <p className="rc-sub" style={{ marginTop: 6 }}>
           {hasStarted
             ? "This usually takes under a minute for a portfolio this size."
-            : "Queued — waiting for a compute worker to pick up the job…"}
+            : "Starting the PD, LGD and EAD engines…"}
         </p>
         <ComputeStageTracker stages={state.computeStages} />
       </div>
