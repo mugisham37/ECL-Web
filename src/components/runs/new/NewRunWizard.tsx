@@ -3,7 +3,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { RunWizardProvider, useRunWizard, canContinueFrom, getFooterHint } from "./RunWizardContext";
+import {
+  RunWizardProvider,
+  useRunWizard,
+  canContinueFrom,
+  canReturnToValidate,
+  getFooterHint,
+  nextMissingPairFile,
+  pdFilesReady,
+} from "./RunWizardContext";
 import { RunWizardHeader } from "./RunWizardHeader";
 import { RunWizardStepper } from "./RunWizardStepper";
 import { RunWizardFooter } from "./RunWizardFooter";
@@ -78,8 +86,36 @@ function WizardInner() {
   }
 
   function handleBack() {
-    if (step === "validate") dispatch({ type: "GO_TO_STEP", step: "upload" });
-    else if (step === "confirm")  dispatch({ type: "GO_TO_STEP", step: "validate" });
+    if (step === "upload" && canReturnToValidate(state)) {
+      dispatch({ type: "GO_TO_STEP", step: "validate" });
+      return;
+    }
+    if (step === "validate") {
+      const missing = nextMissingPairFile(state);
+      if (missing) {
+        dispatch({ type: "REQUEST_FILE_UPLOAD", kind: missing });
+      } else {
+        dispatch({ type: "GO_TO_STEP", step: "upload" });
+      }
+    } else if (step === "confirm") {
+      dispatch({ type: "GO_TO_STEP", step: "validate" });
+    }
+  }
+
+  function handleStepClick(target: NewRunStep) {
+    if (target === step) return;
+    if (target === "upload") {
+      const missing = nextMissingPairFile(state);
+      if (step === "validate" && missing) {
+        dispatch({ type: "REQUEST_FILE_UPLOAD", kind: missing });
+      } else {
+        dispatch({ type: "GO_TO_STEP", step: "upload" });
+      }
+      return;
+    }
+    if (target === "validate" && pdFilesReady(state)) {
+      dispatch({ type: "GO_TO_STEP", step: "validate" });
+    }
   }
 
   function handleCancel() {
@@ -107,7 +143,12 @@ function WizardInner() {
       <RunWizardHeader runName={runName} tenantName={tenantName ?? undefined} onExit={handleCancel} />
 
       {/* Stepper — always visible (handles done/error terminal state) */}
-      <RunWizardStepper currentStep={step} terminalState={terminalState} />
+      <RunWizardStepper
+        currentStep={step}
+        terminalState={terminalState}
+        onStepClick={handleStepClick}
+        canVisitValidate={pdFilesReady(state)}
+      />
 
       {/* Active step with directional slide transition */}
       <div className="run-stage">
@@ -133,6 +174,8 @@ function WizardInner() {
           canContinue={canContinueFrom(state)}
           continueHint={getFooterHint(state)}
           onBack={handleBack}
+          showBack={step !== "upload" || canReturnToValidate(state)}
+          backLabel={step === "upload" && canReturnToValidate(state) ? "Back to validation" : "Back"}
           onCancel={handleCancel}
           onNext={handleNext}
         />
