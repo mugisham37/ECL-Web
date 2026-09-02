@@ -46,7 +46,7 @@ export interface AuditEventRaw {
 }
 
 export interface EngineProgressStageRaw {
-  status: "pending" | "running" | "complete" | "failed";
+  status: "pending" | "queued" | "running" | "complete" | "failed";
   started_at?: string | null;
   finished_at?: string | null;
   elapsed_ms?: number | null;
@@ -212,8 +212,10 @@ export async function fetchRun(
   token: string,
   tenantId: string,
   runId: string,
+  opts?: { view?: "full" | "progress" },
 ): Promise<RunDetailRaw> {
-  return apiFetch<RunDetailRaw>(`/tenants/${tenantId}/runs/${runId}`, { token });
+  const query = opts?.view && opts.view !== "full" ? `?view=${opts.view}` : "";
+  return apiFetch<RunDetailRaw>(`/tenants/${tenantId}/runs/${runId}${query}`, { token });
 }
 
 export async function createRun(
