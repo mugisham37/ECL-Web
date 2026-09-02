@@ -31,17 +31,30 @@ export function ValidationFileItem({
   const hasIssues = issues.length > 0;
   const hasBlocking = blocking.length > 0;
   const hasTemplateFormat = issues.some((issue) => issue.category === "template_format");
-  const isPdPreview = !!pdPreview && file.type === "PD" && pdPreview.status !== "blocking";
+  const isPdPreview = !!pdPreview && file.type === "PD";
   const [open, setOpen] = useState(hasIssues || isPdPreview);
   const expandable = hasIssues || isPdPreview;
 
   const pdCounts = pdPreview ? countPdCriteria(pdPreview.criteria) : null;
+  const pdStatus = pdPreview?.status;
 
   const statusPill = isPdPreview && pdCounts ? (
-    <span className="pill pill-success" style={{ height: 18 }}>
-      <span className="dot" />
-      Validated
-    </span>
+    pdStatus === "blocking" || pdCounts.blocked > 0 ? (
+      <span className="pill pill-danger" style={{ height: 18 }}>
+        <AlertCircle size={11} />
+        {pdCounts.blocked} blocking
+      </span>
+    ) : pdStatus === "warn" || pdCounts.review > 0 ? (
+      <span className="pill pill-warning" style={{ height: 18 }}>
+        <AlertTriangle size={11} />
+        {pdCounts.passed} passed · {pdCounts.review} to review
+      </span>
+    ) : (
+      <span className="pill pill-success" style={{ height: 18 }}>
+        <span className="dot" />
+        Validated
+      </span>
+    )
   ) : !hasIssues ? (
     <span className="pill pill-success" style={{ height: 18 }}>Valid</span>
   ) : hasBlocking ? (
@@ -57,16 +70,18 @@ export function ValidationFileItem({
     </span>
   );
 
-  const iconBg = isPdPreview || !hasIssues
-    ? "var(--success-subtle)"
-    : hasBlocking
-      ? "var(--danger-subtle)"
-      : "var(--warning-subtle)";
-  const iconColor = isPdPreview || !hasIssues
-    ? "var(--success)"
-    : hasBlocking
-      ? "var(--danger)"
-      : "var(--warning)";
+  const pdIsBlocking = isPdPreview && (pdStatus === "blocking" || (pdCounts?.blocked ?? 0) > 0);
+  const pdIsWarn = isPdPreview && !pdIsBlocking && (pdStatus === "warn" || (pdCounts?.review ?? 0) > 0);
+  const iconBg = pdIsBlocking || hasBlocking
+    ? "var(--danger-subtle)"
+    : pdIsWarn || (hasIssues && !hasBlocking)
+      ? "var(--warning-subtle)"
+      : "var(--success-subtle)";
+  const iconColor = pdIsBlocking || hasBlocking
+    ? "var(--danger)"
+    : pdIsWarn || (hasIssues && !hasBlocking)
+      ? "var(--warning)"
+      : "var(--success)";
 
   function toggle() {
     if (expandable) setOpen((v) => !v);
@@ -88,7 +103,7 @@ export function ValidationFileItem({
         }}
       >
         <span className="vf-ic" style={{ background: iconBg, color: iconColor }}>
-          {isPdPreview || !hasIssues ? <Check size={13} /> : <File size={13} />}
+          {pdIsBlocking || hasBlocking ? <AlertCircle size={13} /> : isPdPreview || !hasIssues ? <Check size={13} /> : <File size={13} />}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="vf-name">
@@ -122,7 +137,7 @@ export function ValidationFileItem({
         </div>
       )}
 
-      {open && hasIssues && !isPdPreview && (
+      {open && hasIssues && (
         <div className="vf-body">
           {issues.map((issue) => (
             <div key={issue.id} className={`issue ${issue.level}`}>
