@@ -620,6 +620,7 @@ export function mapEngineProgress(raw: EngineProgressRaw | null | undefined): Co
 
   const backendToFrontend: Record<string, "pending" | "active" | "done" | "error"> = {
     pending: "pending",
+    queued: "pending",
     running: "active",
     complete: "done",
     failed: "error",
