@@ -18,9 +18,10 @@ export function PdValidateActionRow() {
   const counts = preview
     ? countPdCriteria(preview.criteria.filter((c) => c.category === "business"))
     : null;
-  const showView = status === "ready" && preview;
+  const showView = (status === "ready" || status === "blocked") && preview;
   const showBlocked = status === "blocked";
   const showLoading = status === "loading";
+  const showWarn = status === "ready" && preview?.status === "warn";
 
   function goValidate(revalidate: boolean) {
     if (revalidate) {
@@ -46,7 +47,12 @@ export function PdValidateActionRow() {
       </span>
     );
   } else if (showView && counts) {
-    pill = (
+    pill = showWarn ? (
+      <span className="pill pill-warning">
+        <span className="dot" />
+        Review · {counts.passed} passed, {counts.review} to review
+      </span>
+    ) : (
       <span className="pill pill-success">
         <span className="dot" />
         Validated · {counts.passed} passed, {counts.review} to review
