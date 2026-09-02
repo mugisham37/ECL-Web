@@ -81,7 +81,7 @@ export function PdLoanPreviewTable({
                   <StageBadge stage={row.staging} />
                 </td>
                 <td data-label="Next month staging">
-                  <NextStageCell stage={row.nextStaging} />
+                  <NextStageCell stage={row.nextStaging} isFinalMonth={row.isFinalMonth} />
                 </td>
               </motion.tr>
             ))}
