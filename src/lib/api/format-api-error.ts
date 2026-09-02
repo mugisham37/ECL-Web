@@ -39,6 +39,27 @@ const ERROR_COPY: Record<
     subSummary: "You need PD, LGD, and EAD files before validating.",
     hint: "Go back and upload all three file types.",
   },
+  NO_PD_UPLOADS: {
+    summary: "No PD file was found for this run",
+    subSummary: "Upload at least one Probability of Default workbook first.",
+    hint: "Go back and upload a PD file, then validate again.",
+  },
+  INVALID_FILE: {
+    summary: "This workbook could not be read",
+    subSummary: "The file is not a valid Excel workbook.",
+    hint: "Re-export the file as .xlsx from Excel or the official PD template, then re-upload.",
+  },
+  INVALID_PD_PREVIEW: {
+    summary: "PD validation returned an incomplete result",
+    subSummary: "The checklist or preview was missing from the server response.",
+    hint: "Retry validation. If it happens again, contact your administrator.",
+  },
+  INTERNAL_ERROR: {
+    summary: "The validation service hit an unexpected error",
+    subSummary: "This is a server problem, not a problem in your workbook.",
+    hint: "Retry in a moment. If it happens again, the database may be missing a required migration.",
+    isServiceUnavailable: true,
+  },
   COMPUTE_DISPATCH_FAILED: {
     summary: "Could not start the computation",
     subSummary: "The calculation engine did not start.",
@@ -58,6 +79,17 @@ export function formatApiError(err: unknown): FormattedApiError {
         status: err.status,
         hint: copy.hint,
         isServiceUnavailable: copy.isServiceUnavailable,
+      };
+    }
+    if (err.status >= 500) {
+      const server = ERROR_COPY.INTERNAL_ERROR;
+      return {
+        summary: server.summary,
+        subSummary: err.message || server.subSummary,
+        code: err.code,
+        status: err.status,
+        hint: server.hint,
+        isServiceUnavailable: true,
       };
     }
     return {
