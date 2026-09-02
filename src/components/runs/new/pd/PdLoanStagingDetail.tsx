@@ -92,7 +92,9 @@ export function PdLoanStagingDetail({
               <tr key={row.reportingMonthKey}>
                 <td className="mono" data-label="Reporting month">{row.reportingMonth}</td>
                 <td data-label="Staging"><StageBadge stage={row.staging} /></td>
-                <td data-label="Next month staging"><NextStageCell stage={row.nextStaging} /></td>
+                <td data-label="Next month staging">
+                  <NextStageCell stage={row.nextStaging} isFinalMonth={row.isFinalMonth} />
+                </td>
               </tr>
             ))}
           </tbody>
