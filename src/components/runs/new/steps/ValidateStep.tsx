@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ValidationSummary } from "../ValidationSummary";
 import { ValidationFileItem } from "../ValidationFileItem";
 import { PendingFileItem } from "../pd/PendingFileItem";
-import { useRunWizard, hasLgdAndEad, pdFilesReady } from "../RunWizardContext";
+import { useRunWizard, fileIsReady, hasLgdAndEad, nextMissingPairFile, pdFilesReady } from "../RunWizardContext";
 import { useApiSession } from "@/hooks/use-api-session";
 import {
   validateRun,
@@ -49,12 +49,24 @@ export function ValidateStep() {
   const runPdValidation = useCallback(async () => {
     if (!state.runId || !token || !tenantId) return;
     dispatch({ type: "START_PD_VALIDATING" });
+    const backendUp = await checkBackendAvailable();
+    if (!backendUp) {
+      dispatch({
+        type: "SET_PD_PREVIEW_ERROR",
+        error:
+          "We couldn't connect to the service — check your internet connection and try again.",
+      });
+      return;
+    }
     try {
       const result = await validatePdRun(token, tenantId, state.runId);
       dispatch({ type: "SET_PD_PREVIEW", result });
     } catch (err: unknown) {
       const formatted = formatApiError(err);
-      dispatch({ type: "SET_PD_PREVIEW_ERROR", error: formatted.hint || formatted.summary });
+      dispatch({
+        type: "SET_PD_PREVIEW_ERROR",
+        error: [formatted.summary, formatted.hint].filter(Boolean).join(" — "),
+      });
     }
   }, [dispatch, state.runId, tenantId, token]);
 
@@ -126,13 +138,27 @@ export function ValidateStep() {
     let cancelled = false;
     (async () => {
       dispatch({ type: "START_PD_VALIDATING" });
+      const backendUp = await checkBackendAvailable();
+      if (!backendUp) {
+        if (!cancelled) {
+          dispatch({
+            type: "SET_PD_PREVIEW_ERROR",
+            error:
+              "We couldn't connect to the service — check your internet connection and try again.",
+          });
+        }
+        return;
+      }
       try {
         const result = await validatePdRun(token, tenantId, state.runId!);
         if (!cancelled) dispatch({ type: "SET_PD_PREVIEW", result });
       } catch (err: unknown) {
         if (cancelled) return;
         const formatted = formatApiError(err);
-        dispatch({ type: "SET_PD_PREVIEW_ERROR", error: formatted.hint || formatted.summary });
+        dispatch({
+          type: "SET_PD_PREVIEW_ERROR",
+          error: [formatted.summary, formatted.hint].filter(Boolean).join(" — "),
+        });
       }
     })();
     return () => {
@@ -215,8 +241,13 @@ export function ValidateStep() {
     warningIds.every((id) => state.acceptedWarningIds.includes(id));
 
   const primaryPd = state.pdFiles[0];
+  const nextMissing = nextMissingPairFile(state);
   const lgdResult = state.validationResult?.fileResults.find((r) => r.file.type === "LGD");
   const eadResult = state.validationResult?.fileResults.find((r) => r.file.type === "EAD");
+
+  function requestUpload(kind: "LGD" | "EAD") {
+    dispatch({ type: "REQUEST_FILE_UPLOAD", kind });
+  }
   const pdBlockingResult = state.pdPreview?.status === "blocking" && primaryPd
     ? {
         file: primaryPd,
@@ -291,35 +322,37 @@ export function ValidateStep() {
       )}
 
       {pdReady && state.pdPreviewStatus === "blocked" && pdBlockingResult && (
-        <div style={{ marginBottom: "var(--sp-4)" }}>
-          <div className="val-summary err">
-            <span className="vs-ic" aria-hidden="true"><RefreshCw size={20} /></span>
-            <div className="val-summary-body">
-              <div className="vs-t">
-                {pdBlockingResult.issues.length} blocking error{pdBlockingResult.issues.length !== 1 ? "s" : ""} found
-              </div>
-              <div className="vs-d">
-                Fix these in {pdBlockingResult.file.name} and re-upload before this file can validate.
-              </div>
+        <div className="val-summary err" style={{ marginBottom: "var(--sp-4)" }}>
+          <span className="vs-ic" aria-hidden="true"><RefreshCw size={20} /></span>
+          <div className="val-summary-body">
+            <div className="vs-t">
+              {pdBlockingResult.issues.length} blocking error{pdBlockingResult.issues.length !== 1 ? "s" : ""} found
+            </div>
+            <div className="vs-d">
+              Fix these in {pdBlockingResult.file.name} and re-upload before this file can continue.
             </div>
           </div>
-          <ValidationFileItem
-            result={pdBlockingResult}
-            zoneLabel="PD"
-            onReupload={(newFile) => handleReupload(pdBlockingResult, newFile)}
-            isReuploading={reuploadingId === pdBlockingResult.file.id}
-            onDownloadTemplate={() => handleDownloadTemplate("PD")}
-          />
         </div>
       )}
 
-      {pdReady && state.pdPreviewStatus === "ready" && state.pdPreview && primaryPd && (
+      {pdReady &&
+        (state.pdPreviewStatus === "ready" || state.pdPreviewStatus === "blocked") &&
+        state.pdPreview &&
+        primaryPd && (
         <ValidationFileItem
-          result={{ file: primaryPd, issues: [] }}
+          result={{
+            file: primaryPd,
+            issues: state.pdPreview.issues ?? [],
+          }}
           zoneLabel="PD"
           extraFileCount={Math.max(0, state.pdFiles.length - 1)}
           pdPreview={state.pdPreview}
-          onReupload={(newFile) => handleReupload({ file: primaryPd, issues: [] }, newFile)}
+          onReupload={(newFile) =>
+            handleReupload(
+              { file: primaryPd, issues: state.pdPreview?.issues ?? [] },
+              newFile,
+            )
+          }
           isReuploading={reuploadingId === primaryPd.id}
           onDownloadTemplate={() => handleDownloadTemplate("PD")}
         />
@@ -460,8 +493,30 @@ export function ValidateStep() {
           </motion.div>
         ) : (
           <>
-            {state.lgdFile ? null : <PendingFileItem kind="LGD" />}
-            {state.eadFile ? null : <PendingFileItem kind="EAD" />}
+            {nextMissing && (
+              <div className="callout callout-info" style={{ marginTop: "var(--sp-4)", marginBottom: "var(--sp-3)" }}>
+                <Upload size={15} className="ic" aria-hidden="true" />
+                <span>
+                  {nextMissing === "LGD"
+                    ? "PD is in. Upload Loss Given Default next — ECL needs LGD and EAD before you can confirm."
+                    : "LGD is in. Upload Exposure at Default next, then LGD and EAD will validate together."}
+                </span>
+              </div>
+            )}
+            {state.lgdFile ? null : (
+              <PendingFileItem
+                kind="LGD"
+                recommended={nextMissing === "LGD"}
+                onUpload={() => requestUpload("LGD")}
+              />
+            )}
+            {state.eadFile ? null : (
+              <PendingFileItem
+                kind="EAD"
+                recommended={nextMissing === "EAD"}
+                onUpload={fileIsReady(state.lgdFile) ? () => requestUpload("EAD") : undefined}
+              />
+            )}
             {state.lgdFile && !lgdResult && paired === false && (
               <div className="val-file" style={{ marginTop: "var(--sp-3)" }}>
                 <div className="vf-head" style={{ cursor: "default" }}>
