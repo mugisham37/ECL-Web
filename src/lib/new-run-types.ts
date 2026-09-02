@@ -88,6 +88,8 @@ export interface PdLoanPreviewRow {
   reportingMonthKey: string;
   staging: PdStage;
   nextStaging: PdStage;
+  /** True when this row is the segment's last month — Offbooks here is end-of-window, not an exit. */
+  isFinalMonth?: boolean;
 }
 
 export interface PdPreviewStats {
