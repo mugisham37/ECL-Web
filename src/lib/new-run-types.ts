@@ -172,6 +172,8 @@ export interface NewRunState {
   uploadProgress: Record<string, number>;
   uploadedFileIds: Record<string, string>;
   acceptedWarningIds: string[];
+  /** When returning to Upload from Validate, scroll to and highlight this zone. */
+  uploadFocus: FileInputType | null;
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
@@ -202,7 +204,9 @@ export type NewRunAction =
   | { type: "START_PD_VALIDATING" }
   | { type: "SET_PD_PREVIEW"; result: PdPreviewResult }
   | { type: "SET_PD_PREVIEW_ERROR"; error: string }
-  | { type: "CLEAR_PD_PREVIEW" };
+  | { type: "CLEAR_PD_PREVIEW" }
+  | { type: "REQUEST_FILE_UPLOAD"; kind: FileInputType }
+  | { type: "CLEAR_UPLOAD_FOCUS" };
 
 // ── Mock seed files ───────────────────────────────────────────────────────
 
