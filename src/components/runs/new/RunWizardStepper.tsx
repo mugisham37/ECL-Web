@@ -12,9 +12,16 @@ const STEP_LABELS: Record<string, string> = {
 interface RunWizardStepperProps {
   currentStep: NewRunStep;
   terminalState?: "success" | "failure" | null;
+  onStepClick?: (step: NewRunStep) => void;
+  canVisitValidate?: boolean;
 }
 
-export function RunWizardStepper({ currentStep, terminalState }: RunWizardStepperProps) {
+export function RunWizardStepper({
+  currentStep,
+  terminalState,
+  onStepClick,
+  canVisitValidate = false,
+}: RunWizardStepperProps) {
   const curIdx = stepIndex(currentStep);
 
   return (
@@ -37,9 +44,30 @@ export function RunWizardStepper({ currentStep, terminalState }: RunWizardSteppe
           i + 1
         );
 
+        const clickable =
+          !!onStepClick &&
+          !terminalState &&
+          (step === "upload" || (step === "validate" && canVisitValidate));
+
         return (
           <div key={step} style={{ display: "contents" }}>
-            <div className={`rs ${cls}`}>
+            <div
+              className={`rs ${cls}${clickable ? " rs-clickable" : ""}`}
+              aria-current={isActive ? "step" : undefined}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onClick={clickable ? () => onStepClick(step) : undefined}
+              onKeyDown={
+                clickable
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onStepClick(step);
+                      }
+                    }
+                  : undefined
+              }
+            >
               <span className="n" aria-hidden="true">{markerContent}</span>
               <span className="lbl-txt">{STEP_LABELS[step]}</span>
             </div>
